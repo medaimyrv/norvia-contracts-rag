@@ -20,6 +20,13 @@ class NoTextLayerError(IngestionError):
     permanent = True
 
 
+class FileMissingError(IngestionError):
+    """El PDF no está en el almacenamiento (volumen perdido o borrado)."""
+
+    code = "file_missing"
+    permanent = True
+
+
 class EmbeddingProviderError(IngestionError):
     """El proveedor de embeddings falló (timeout, rate limit, caída): se reintenta [R6, F4]."""
 
