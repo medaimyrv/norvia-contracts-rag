@@ -1,0 +1,65 @@
+[
+  {
+    "file": "condor_andino_v1.pdf",
+    "carrier": "Transportes Cóndor Andino",
+    "contract_code": "CA-2025",
+    "version": 1,
+    "effective_from": "2025-01-01",
+    "seed": true,
+    "expected": "READY"
+  },
+  {
+    "file": "condor_andino_v2.pdf",
+    "carrier": "Transportes Cóndor Andino",
+    "contract_code": "CA-2025",
+    "version": 2,
+    "effective_from": "2026-03-01",
+    "seed": true,
+    "expected": "READY"
+  },
+  {
+    "file": "rapido_austral_v1.pdf",
+    "carrier": "Rápido Austral Logística",
+    "contract_code": "RA-2025",
+    "version": 1,
+    "effective_from": "2025-06-01",
+    "seed": true,
+    "expected": "READY"
+  },
+  {
+    "file": "mareas_pacifico_v1.pdf",
+    "carrier": "Mareas del Pacífico Cargo",
+    "contract_code": "MP-2024",
+    "version": 1,
+    "effective_from": "2024-09-01",
+    "seed": true,
+    "expected": "READY"
+  },
+  {
+    "file": "injection_test.pdf",
+    "carrier": "Proveedor de Pruebas",
+    "contract_code": "PP-2026",
+    "version": 1,
+    "effective_from": "2026-01-01",
+    "seed": false,
+    "expected": "READY (prompt injection, S3)"
+  },
+  {
+    "file": "corrupt.pdf",
+    "carrier": "Documento Corrupto",
+    "contract_code": "XX-0000",
+    "version": 1,
+    "effective_from": "2026-01-01",
+    "seed": false,
+    "expected": "FAILED invalid_pdf (F1)"
+  },
+  {
+    "file": "scanned.pdf",
+    "carrier": "Documento Escaneado",
+    "contract_code": "XX-0000",
+    "version": 1,
+    "effective_from": "2026-01-01",
+    "seed": false,
+    "expected": "FAILED no_text_layer (F2)"
+  }
+]

@@ -8,8 +8,8 @@ Marca `[x]` solo cuando el test pasa **y** puedes explicar el diff.
 - [x] T02 docker-compose: postgres(pgvector), redis, api, worker; healthchecks (el servicio frontend se añade en T15) · R14
 - [x] T03 Settings con pydantic-settings + modelos de dominio estrictos + tests · R1
 - [x] T04 Alembic: tablas `documents`/`chunks`, índice HNSW + test de integración (testcontainers) · R7
-- [ ] T20 GitHub Actions: lint + tests (adelantada; el build de imágenes se añade en T21) · Q5
-- [ ] T05 Generador de PDFs sintéticos (3 transportistas, 2 versiones, tablas, corrupto, escaneado, malicioso) · E5
+- [x] T20 GitHub Actions: lint + tests (adelantada; el build de imágenes se añade en T21) · Q5
+- [x] T05 Generador de PDFs sintéticos (3 transportistas, 2 versiones, tablas, corrupto, escaneado, malicioso) · E5
 - [ ] T06 Extractor pdfplumber + errores `invalid_pdf` / `no_text_layer` + tests · R4, F1, F2
 - [ ] T07 Chunkers `clause` y `fixed` + tests unitarios · R4, D2
 - [ ] T08 Puertos + `FakeEmbedder` / `FakeLLM` + adaptadores LiteLLM · R10
