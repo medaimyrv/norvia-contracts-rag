@@ -63,5 +63,15 @@ class LLMConfigurationError(LLMError):
     code = "llm_misconfigured"
 
 
+class DocumentConflictError(Exception):
+    """La subida choca con un documento existente [D5]. La API responde 409."""
+
+    def __init__(self, code: str, message: str, existing_id: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.existing_id = existing_id
+
+
 class ConfigurationError(Exception):
     """Configuración incoherente detectada al arrancar: el proceso no debe iniciarse."""

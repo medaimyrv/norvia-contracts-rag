@@ -94,6 +94,18 @@ services:
       retries: 3
       start_period: 20s
 
+  # Carga inicial: sube por la API los PDFs seed=true de samples/ y termina [R14].
+  # Idempotente: en arranques posteriores recibe 200 (ya existía) en vez de 202
+  seed:
+    image: norvia-rag-backend:local
+    command: ["python", "-m", "scripts.seed", "--api", "http://api:8000", "--samples", "/samples"]
+    volumes:
+      - ./samples:/samples:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+
 volumes:
   pgdata:
   uploads:
