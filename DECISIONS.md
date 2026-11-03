@@ -21,7 +21,7 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 **Pendiente:** medir tamaño de imagen y tiempo por PDF para justificar con números.
 
 ## D2 — Chunking estructural con fallback + contexto solo para el embedding
-**Estado:** Aceptada (revisada 2026-11-03; estrategia final según eval)
+**Estado:** Aceptada y **confirmada por el eval** (2026-11-03): B2 recall@1 0,92 / MRR 0,94 frente a 0,50 / 0,74 de B1 y 0,42 / 0,71 de B0 (ver `eval/RESULTS.md`)
 **Contexto:** el enunciado describe contratos «con tablas y cláusulas» [R13]. Medido en `samples/`: cláusulas de 119–463 caracteres, una cláusula repartida entre dos páginas (`condor_andino_v1`, cláusula 8), texto extraído sin líneas en blanco (no hay párrafos detectables) y tablas de ~720 caracteres.
 **Decisión:**
 - Encabezados reconocidos: `1.` / `1.1`, `Cláusula N`, `Artículo N`, ordinales (`PRIMERA.-`, `SEGUNDA.`), `Anexo …`. Un chunk por cláusula; si supera el presupuesto (`max_chars`), se divide por apartado y después por ventana dura. Sin encabezados → ventanas. Nada del texto se pierde (invariante con test).
@@ -66,6 +66,9 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 **Estado:** Aceptada
 **Decisión:** (1) `top_score < RELEVANCE_THRESHOLD` → «sin evidencia» sin llamar al LLM; (2) el prompt obliga a responder `SIN_EVIDENCIA` si el contexto no lo sostiene; (3) sin citas válidas tras validar → «sin evidencia».
 **Validación:** el eval set incluye preguntas sin respuesta; se calibra el umbral con un barrido (precisión de «sin evidencia» frente a recall de las respondibles).
+
+**Umbrales calibrados (2026-11-03, `eval/RESULTS.md`):** con `gemini-embedding-001`, prioridad «no inventar» → **0,69** (rechaza las 3 preguntas sin respuesta del eval y pierde 1 de 12 con respuesta). En modo demo (`fake`) → **0,25**, permisivo a propósito porque el FakeLLM es extractivo. `RELEVANCE_THRESHOLD` permite fijar otro valor.
+**Confianza final:** el mínimo entre la que declara el LLM y la que indica la búsqueda (margen sobre el umbral: +0,10 alta, +0,03 media).
 
 ## D9 — SSE por POST con fetch
 **Estado:** Aceptada

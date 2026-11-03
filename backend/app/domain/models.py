@@ -88,6 +88,7 @@ class ChatRequest(StrictModel):
 
 
 class CitationOut(StrictModel):
+    label: str  # marcador usado en el texto de la respuesta, p. ej. "c2"
     chunk_id: UUID
     document_id: UUID
     filename: str

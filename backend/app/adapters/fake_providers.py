@@ -86,7 +86,10 @@ def _best_sentences(question: str, evidence: list[EvidenceChunk]) -> list[tuple[
     wanted = set(tokens(question))
     scored: list[tuple[int, int, str, str]] = []  # (aciertos, orden, etiqueta, frase)
     for chunk in evidence:
-        for sentence in re.split(r"(?<=[.!?])\s+", " ".join(chunk.text.split())):
+        # Frases: fin de oración o inicio de apartado («6.1», «a)»), para no pegar el título
+        text = re.sub(r"\n(?=\d+\.\d*\s|[a-z]\)\s)", "\n\n", chunk.text)
+        for sentence in re.split(r"(?<=[.!?])\s+|\n\n", text):
+            sentence = " ".join(sentence.split())
             score = len(wanted & set(tokens(sentence)))
             if score:
                 scored.append((score, len(scored), chunk.label, sentence))

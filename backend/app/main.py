@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import OperationalError
 
 from app.adapters.providers import build_providers
-from app.api import documents
+from app.api import chat, documents
 from app.domain.errors import DocumentConflictError
 from app.settings import get_settings
 
@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Norvia RAG", lifespan=lifespan)
 app.include_router(documents.router)
+app.include_router(chat.router)
 
 
 @app.exception_handler(DocumentConflictError)
