@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     model_provider: Literal["fake", "gemini"] = "fake"
     gemini_api_key: SecretStr | None = None
-    llm_model: str = "gemini/gemini-2.5-flash"
+    llm_model: str = "gemini/gemini-3.5-flash-lite"
     embedding_model: str = "gemini/gemini-embedding-001"
     embedding_dim: int = Field(default=768, gt=0)
     llm_timeout_s: float = Field(default=30, gt=0)

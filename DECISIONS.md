@@ -53,7 +53,7 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 ## D6 — Proveedor de modelos seleccionable; fake por defecto
 **Estado:** Aceptada
 **Contexto:** [R10], [R14], [Q1]. El evaluador puede no tener claves.
-**Decisión:** `MODEL_PROVIDER=fake|gemini`. Real: LiteLLM con Gemini (LLM) y `gemini-embedding-001` reducido a 768 dim (`dimensions=768`; `text-embedding-004` está deprecado). Fake: embeddings por bolsa de palabras hasheada (determinista; compara palabras, no significados) y LLM extractivo (ver D15).
+**Decisión:** `MODEL_PROVIDER=fake|gemini`. Real: LiteLLM con Gemini: `gemini-3.5-flash-lite` (LLM; `gemini-2.5-flash` ya no está disponible para cuentas nuevas y `gemini-3.8-flash` fallaba en streaming vía LiteLLM al probarlo el 2026-11-03) y `gemini-embedding-001` reducido a 768 dim (`dimensions=768`; `text-embedding-004` está deprecado). Fake: embeddings por bolsa de palabras hasheada (determinista; compara palabras, no significados) y LLM extractivo (ver D15).
 **Consecuencias:** `EMBEDDING_DIM` queda fijo en la migración; cambiar de modelo exige migración y reingesta (limitación conocida). No se usa un modelo local: no sería determinista y obligaría a descargar GB en la CI.
 
 ## D7 — Streaming con salida estructurada al final

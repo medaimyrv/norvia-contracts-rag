@@ -18,3 +18,43 @@ class InvalidPdfError(IngestionError):
 class NoTextLayerError(IngestionError):
     code = "no_text_layer"
     permanent = True
+
+
+class EmbeddingProviderError(IngestionError):
+    """El proveedor de embeddings falló (timeout, rate limit, caída): se reintenta [R6, F4]."""
+
+    code = "embedding_provider_error"
+
+
+class EmbeddingConfigurationError(IngestionError):
+    """Clave inválida o modelo inexistente: reintentar no lo arregla."""
+
+    code = "embedding_misconfigured"
+    permanent = True
+
+
+# --- Chat: no son de ingesta; el endpoint SSE los convierte en un evento `error` [F3, F4] ---
+
+
+class LLMError(Exception):
+    code: str = "llm_error"
+
+
+class LLMTimeoutError(LLMError):
+    code = "llm_timeout"
+
+
+class LLMRateLimitError(LLMError):
+    code = "llm_rate_limited"
+
+
+class LLMUnavailableError(LLMError):
+    code = "llm_unavailable"
+
+
+class LLMConfigurationError(LLMError):
+    code = "llm_misconfigured"
+
+
+class ConfigurationError(Exception):
+    """Configuración incoherente detectada al arrancar: el proceso no debe iniciarse."""
