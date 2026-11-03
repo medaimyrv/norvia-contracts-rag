@@ -16,10 +16,10 @@ MIN_TEXT_CHARS = 20
 
 
 class PdfplumberExtractor:
-    def extract(self, data: bytes) -> ExtractedDocument:
+    def extract(self, data: bytes, max_pages: int | None = None) -> ExtractedDocument:
         try:
             with pdfplumber.open(io.BytesIO(data)) as pdf:
-                raw = [_extract_page(page) for page in pdf.pages]
+                raw = [_extract_page(page) for page in pdf.pages[:max_pages]]
         except Exception as exc:
             # Archivo no confiable: cualquier fallo del parser es culpa de la entrada
             raise InvalidPdfError(str(exc)) from exc

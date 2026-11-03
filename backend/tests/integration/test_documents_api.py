@@ -200,3 +200,32 @@ def test_documents_from_other_model_are_flagged_and_reindexed(
     assert queue.ids == [UUID(created["id"])]
     assert client.get(f"/api/documents/{created['id']}").json()["status"] == "PENDING"
     assert client.get("/api/config").json()["stale_documents"] == 0
+
+
+# --- Propuesta de metadatos para el formulario [D19] ---
+
+
+def test_suggest_fills_form_from_cover_without_storing(client, tmp_path) -> None:
+    files = {"file": ("x.pdf", PDF, "application/pdf")}
+    response = client.post("/api/documents/suggest", files=files)
+    body = response.json()
+    assert (body["carrier"], body["contract_code"], body["version"], body["effective_from"]) == (
+        "Transportes Cóndor Andino", "CA-2025", 1, "2025-01-01",
+    )  # fmt: skip
+    assert body["warning"] is None
+    assert client.get("/api/documents").json() == []  # no guarda nada
+    assert not list(tmp_path.glob("*.pdf"))
+
+
+def test_suggest_warns_about_scanned_pdf_before_upload(client) -> None:
+    scanned = (ROOT / "samples" / "scanned.pdf").read_bytes()
+    body = client.post(
+        "/api/documents/suggest", files={"file": ("s.pdf", scanned, "application/pdf")}
+    ).json()
+    assert "escaneado" in body["warning"]
+
+
+def test_suggest_validates_file_type(client) -> None:
+    files = {"file": ("a.pdf", b"hola", "text/plain")}
+    response = client.post("/api/documents/suggest", files=files)
+    assert response.status_code == 415

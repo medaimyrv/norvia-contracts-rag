@@ -36,7 +36,7 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 ## D3 — Versiones: conservar histórico + filtro por vigencia
 **Estado:** Aceptada
 **Contexto:** [R8]; las cláusulas cambian por versión.
-**Decisión:** cada versión es un documento con `contract_code`, `version`, `effective_from`, `is_current` (regla en SPEC §3). La búsqueda filtra `only_current=true` por defecto. Los metadatos se introducen en el formulario de subida (validados con Pydantic).
+**Decisión:** cada versión es un documento con `contract_code`, `version`, `effective_from`, `is_current` (regla en SPEC §3). La búsqueda filtra `only_current=true` por defecto. Los metadatos se introducen en el formulario de subida (validados con Pydantic), pre-rellenado desde la portada del PDF (D19).
 **Contradicción entre versiones:** se responde con la versión vigente. Si el usuario desactiva `only_current`, el prompt exige señalar la diferencia y citar ambas versiones.
 **Alternativas descartadas:** reemplazar (pierde trazabilidad; las reclamaciones dependen de la fecha del envío); extraer metadatos con el LLM (frágil, trabajo futuro).
 
@@ -124,6 +124,13 @@ El usuario puede fijar el transportista a mano con un desplegable; el filtro exp
 **Decisión:** `SELECT … FOR UPDATE` sobre el documento (dos workers con el mismo documento) y `pg_advisory_xact_lock` por (transportista, contrato) al recalcular la vigencia (dos documentos del mismo contrato). Test que reproduce la carrera con dos transacciones reales.
 **Alternativas descartadas:** aislamiento SERIALIZABLE (reintentos en toda la transacción); bloquear todas las filas del contrato (más amplio de lo necesario).
 
+## D19 — Metadatos propuestos desde la portada; la persona confirma
+**Estado:** Aceptada (2026-11-03, tras probar la web)
+**Contexto:** el enunciado exige filtrar por transportista y versión vigente y citar la versión, así que cada PDF necesita transportista, código de contrato, versión y fecha de vigencia (D3). Pedirlos a mano en cada subida es lento con cientos de contratos.
+**Decisión:** al elegir el archivo, `POST /api/documents/suggest` lee las 2 primeras páginas y propone los cuatro datos con **reglas** («Código/Ref.», «Versión/Edición», «Vigente/En vigor desde» en ISO, dd/mm/aaaa o «15 de enero de 2026»). Si el texto nombra un transportista ya registrado se propone su nombre exacto (evita duplicados que romperían el filtro). El formulario se rellena y **la persona confirma**; lo no detectado queda vacío. No guarda nada. Como efecto añadido, avisa de escaneados o PDFs dañados antes de subirlos.
+**Alternativas descartadas:** extracción con LLM (no funciona sin clave y, si se equivoca en la versión o la fecha, el sistema respondería con un contrato que no rige sin avisar); campos opcionales con valores por defecto (datos de mala calidad).
+**Limitación:** las reglas cubren portadas habituales; con otros formatos el formulario queda vacío y se rellena a mano.
+
 ---
 
 ## Uso de IA generativa
@@ -138,7 +145,7 @@ El usuario puede fijar el transportista a mano con un desplegable; el filtro exp
    costes y una recomendación; yo elegía. Ejemplos: priorizar «no inventar» al fijar el umbral
    aunque se pierda una pregunta respondible, devolver 409 ante metadatos contradictorios,
    preguntar «¿Quisiste decir…?» en vez de filtrar a ciegas, modo demo extractivo sin claves,
-   detectar el cambio de modelo de embeddings.
+   detectar el cambio de modelo de embeddings, pre-rellenar el formulario desde la portada.
 3. **Implementación por porciones.** Una tarea por vez, con sus tests; revisión del diff antes de
    cada commit; un commit por tarea con el ID del requisito; CI en verde tras cada push.
 4. **Verificación en tres niveles:** tests automáticos (171, incluidos de integración con pgvector

@@ -63,6 +63,14 @@ def _score(question_words: list[str], variant: str) -> float:
     return max((SequenceMatcher(None, w, variant).ratio() for w in windows), default=0.0)
 
 
+def best_known_carrier(text: str, known_carriers: list[str]) -> tuple[str | None, float]:
+    """Transportista registrado que mejor aparece en el texto y su puntuación (0-1)."""
+    words = normalize(text).split()
+    scored = [(_score(words, _variant(c)), c) for c in known_carriers]
+    score, carrier = max(scored, default=(0.0, None))
+    return carrier, score
+
+
 def resolve_carrier(question: str, known_carriers: list[str]) -> CarrierResolution:
     words = normalize(question).split()
     scores = {carrier: _score(words, _variant(carrier)) for carrier in known_carriers}

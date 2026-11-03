@@ -9,10 +9,15 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Resp
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
+from starlette.concurrency import run_in_threadpool
 
+from app.adapters.db.retriever import PgVectorRetriever
 from app.adapters.db.tables import Chunk, Document
+from app.adapters.pdfplumber_extractor import PdfplumberExtractor
 from app.api.deps import get_app_settings, get_document_service, get_sessions
-from app.domain.models import ChunkOut, DocumentMetadata, DocumentOut
+from app.domain.errors import InvalidPdfError, NoTextLayerError
+from app.domain.metadata_suggestion import suggest_metadata
+from app.domain.models import ChunkOut, DocumentMetadata, DocumentOut, StrictModel
 from app.services.documents import DocumentService
 from app.settings import Settings
 
@@ -24,6 +29,22 @@ MULTIPART_OVERHEAD = 64 * 1024  # campos del formulario y separadores
 
 def error(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status, detail={"code": code, "message": message})
+
+
+async def _read_pdf(request: Request, file: UploadFile, settings: Settings) -> bytes:
+    """Validación de archivo compartida por la subida y la sugerencia [S1]."""
+    limit = settings.max_upload_bytes
+    # Primera barrera: rechazar por cabecera sin leer el cuerpo
+    declared = int(request.headers.get("content-length") or 0)
+    if declared > limit + MULTIPART_OVERHEAD:
+        raise error(413, "file_too_large", f"Máximo {settings.max_upload_mb} MB")
+    data = await file.read(limit + 1)  # segunda barrera: nunca más de limit + 1 bytes
+    if len(data) > limit:
+        raise error(413, "file_too_large", f"Máximo {settings.max_upload_mb} MB")
+    if not data.startswith(PDF_MAGIC):
+        # Se mira el contenido, no la extensión ni el content-type (los elige el cliente)
+        raise error(415, "unsupported_type", "Solo se admiten archivos PDF")
+    return data
 
 
 def to_out(doc: Document, duplicate: bool = False) -> DocumentOut:
@@ -43,17 +64,7 @@ async def upload_document(
     service: Annotated[DocumentService, Depends(get_document_service)],
     settings: Annotated[Settings, Depends(get_app_settings)],
 ) -> DocumentOut:
-    limit = settings.max_upload_bytes
-    # Primera barrera: rechazar por cabecera sin leer el cuerpo
-    declared = int(request.headers.get("content-length") or 0)
-    if declared > limit + MULTIPART_OVERHEAD:
-        raise error(413, "file_too_large", f"Máximo {settings.max_upload_mb} MB")
-    data = await file.read(limit + 1)  # segunda barrera: nunca más de limit + 1 bytes
-    if len(data) > limit:
-        raise error(413, "file_too_large", f"Máximo {settings.max_upload_mb} MB")
-    if not data.startswith(PDF_MAGIC):
-        # Se mira el contenido, no la extensión ni el content-type (los elige el cliente)
-        raise error(415, "unsupported_type", "Solo se admiten archivos PDF")
+    data = await _read_pdf(request, file, settings)
 
     try:
         # Los campos del formulario ya llegan convertidos: el modelo estricto valida reglas
@@ -74,6 +85,56 @@ async def upload_document(
     if registration.duplicate:
         response.status_code = 200
     return to_out(registration.document, registration.duplicate)
+
+
+class SuggestionOut(StrictModel):
+    """Datos propuestos para el formulario; el usuario siempre los confirma [D3, D19]."""
+
+    carrier: str | None
+    contract_code: str | None
+    version: int | None
+    effective_from: date | None
+    known_carrier: bool
+    warning: str | None
+
+
+SUGGEST_PAGES = 2  # la portada basta; no se procesa el documento entero
+
+
+@router.post("/documents/suggest", response_model=SuggestionOut)
+async def suggest_document_metadata(
+    request: Request,
+    file: Annotated[UploadFile, File()],
+    sessions: Annotated[sessionmaker[Session], Depends(get_sessions)],
+    settings: Annotated[Settings, Depends(get_app_settings)],
+) -> SuggestionOut:
+    """Lee la portada y propone transportista, código, versión y vigencia. No guarda nada."""
+    data = await _read_pdf(request, file, settings)
+    known = PgVectorRetriever(sessions).known_carriers()
+    try:
+        extracted = await run_in_threadpool(PdfplumberExtractor().extract, data, SUGGEST_PAGES)
+    except (InvalidPdfError, NoTextLayerError) as exc:
+        # Aviso adelantado: el worker lo rechazará igual, pero el usuario lo sabe antes de subir
+        warning = (
+            "El PDF parece escaneado (sin texto): no se podrá procesar."
+            if isinstance(exc, NoTextLayerError)
+            else "El PDF está dañado o no es válido: no se podrá procesar."
+        )
+        return SuggestionOut(
+            carrier=None, contract_code=None, version=None, effective_from=None,
+            known_carrier=False, warning=warning,
+        )  # fmt: skip
+    text = "\n".join(page.text for page in extracted.pages)
+    s = suggest_metadata(text, known)
+    found = any((s.carrier, s.contract_code, s.version, s.effective_from))
+    return SuggestionOut(
+        carrier=s.carrier,
+        contract_code=s.contract_code,
+        version=s.version,
+        effective_from=s.effective_from,
+        known_carrier=s.known_carrier,
+        warning=None if found else "No se detectaron datos en la portada: rellénalos a mano.",
+    )
 
 
 @router.post("/documents/reindex")

@@ -65,3 +65,12 @@ export type ChatEvent =
     }
   | { event: "done"; data: { answer: string } }
   | { event: "error"; data: ApiError };
+
+export interface MetadataSuggestion {
+  carrier: string | null;
+  contract_code: string | null;
+  version: number | null;
+  effective_from: string | null;
+  known_carrier: boolean;
+  warning: string | null;
+}

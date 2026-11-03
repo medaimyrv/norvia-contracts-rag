@@ -1,5 +1,12 @@
 import { SSEParser } from "./sse";
-import type { ApiError, AppConfig, ChatEvent, ChunkOut, DocumentOut } from "./types";
+import type {
+  ApiError,
+  AppConfig,
+  ChatEvent,
+  ChunkOut,
+  DocumentOut,
+  MetadataSuggestion,
+} from "./types";
 
 export class RequestError extends Error {
   constructor(
@@ -27,6 +34,13 @@ export const api = {
   chunk: (id: string) => fetch(`/api/chunks/${id}`).then((r) => json<ChunkOut>(r)),
   reindex: () =>
     fetch("/api/documents/reindex", { method: "POST" }).then((r) => json<{ requeued: number }>(r)),
+  suggest: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return fetch("/api/documents/suggest", { method: "POST", body: form }).then((r) =>
+      json<MetadataSuggestion>(r),
+    );
+  },
   upload: (form: FormData) =>
     fetch("/api/documents", { method: "POST", body: form }).then((r) => json<DocumentOut>(r)),
 };

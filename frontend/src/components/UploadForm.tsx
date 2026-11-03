@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { api, RequestError } from "../api";
 
 interface Props {
@@ -6,12 +6,43 @@ interface Props {
   onUploaded: () => void;
 }
 
-const input = "w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm";
+// Color de texto explícito: un campo dentro de un <label> heredaría el gris claro de la etiqueta
+const input = "w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm text-slate-900";
 
 /** Subida de PDF con los metadatos que exige D3 (transportista, código, versión, vigencia). */
 export function UploadForm({ carriers, onUploaded }: Props) {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [sending, setSending] = useState(false);
+  const [hint, setHint] = useState<{ ok: boolean; text: string } | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  /** Al elegir el PDF, la API lee la portada y propone los datos; el usuario los revisa [D19]. */
+  async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setMessage(null);
+    if (!file) return setHint(null);
+    setHint({ ok: true, text: "Leyendo la portada del PDF…" });
+    try {
+      const s = await api.suggest(file);
+      const fields = formRef.current!.elements;
+      // Lo no detectado se vacía: no deben quedar datos de un archivo elegido antes
+      const set = (name: string, value: string | number | null) => {
+        (fields.namedItem(name) as HTMLInputElement).value = value === null ? "" : String(value);
+      };
+      set("carrier", s.carrier);
+      set("contract_code", s.contract_code);
+      set("version", s.version);
+      set("effective_from", s.effective_from);
+      if (s.warning) setHint({ ok: false, text: s.warning });
+      else
+        setHint({
+          ok: true,
+          text: `Datos detectados en la portada${s.known_carrier ? " (transportista ya registrado)" : ""}: revísalos antes de subir.`,
+        });
+    } catch (e) {
+      setHint({ ok: false, text: e instanceof RequestError ? e.message : "No se pudo leer el PDF." });
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,6 +56,7 @@ export function UploadForm({ carriers, onUploaded }: Props) {
         text: doc.duplicate ? "Ese archivo ya estaba registrado." : "Recibido: procesando…",
       });
       form.reset();
+      setHint(null);
       onUploaded();
     } catch (e) {
       const text = e instanceof RequestError ? e.message : "No se pudo subir el archivo.";
@@ -35,9 +67,24 @@ export function UploadForm({ carriers, onUploaded }: Props) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-2 rounded-lg border border-slate-200 bg-white p-3">
+    <form
+      ref={formRef}
+      onSubmit={submit}
+      className="space-y-2 rounded-lg border border-slate-200 bg-white p-3"
+    >
       <h2 className="font-semibold text-slate-800">Subir contrato</h2>
-      <input name="file" type="file" accept="application/pdf,.pdf" required className="text-sm" />
+      {/* w-full: el control nativo (botón + nombre) no debe salirse de la columna en ningún navegador */}
+      <input
+        name="file"
+        type="file"
+        accept="application/pdf,.pdf"
+        required
+        onChange={onFileChange}
+        className="block w-full min-w-0 text-sm text-slate-600 file:mr-2 file:rounded-md file:border-0 file:bg-slate-200 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-300"
+      />
+      {hint && (
+        <p className={`text-xs ${hint.ok ? "text-slate-500" : "text-amber-700"}`}>{hint.text}</p>
+      )}
       <input name="carrier" list="carriers" placeholder="Transportista" required className={input} />
       <datalist id="carriers">
         {carriers.map((c) => (
@@ -48,8 +95,8 @@ export function UploadForm({ carriers, onUploaded }: Props) {
         <input name="contract_code" placeholder="Código (CA-2025)" required className={input} />
         <input name="version" type="number" min={1} placeholder="Versión" required className={input} />
       </div>
-      <label className="block text-xs text-slate-500">
-        Vigente desde
+      <label className="block">
+        <span className="text-xs text-slate-500">Vigente desde</span>
         <input name="effective_from" type="date" required className={input} />
       </label>
       <button

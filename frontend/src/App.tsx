@@ -51,7 +51,7 @@ export default function App() {
       </header>
 
       <main className="grid flex-1 gap-3 md:grid-cols-[320px_1fr]">
-        <aside className="space-y-3">
+        <aside className="min-w-0 space-y-3">
           <UploadForm carriers={config?.carriers ?? []} onUploaded={documents.refresh} />
           <h2 className="font-semibold text-slate-800">Documentos</h2>
           {documents.error && <p className="text-sm text-red-700">{documents.error}</p>}

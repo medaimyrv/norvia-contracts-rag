@@ -42,6 +42,10 @@ docker compose up --build
 > Si cambias `POSTGRES_PASSWORD` después del primer arranque, recrea el volumen:
 > `docker compose down -v`.
 
+Para probarla a mano: `make manual-tests` genera PDFs de prueba (versión nueva, versión futura,
+duplicados, conflictos, no-PDF, 21 MB…) y [`pruebas_manuales/GUIA.md`](pruebas_manuales/GUIA.md)
+explica qué debe pasar con cada uno.
+
 Preguntas de ejemplo: «¿Cuál es el plazo de reclamación por mercancía dañada con Cóndor Andino?»,
 «¿Cuánto cuesta un envío de 5000 kg de Sevilla a Málaga con Vientos del Sur?», «¿Cuánto tiempo
 tengo para quejarme si la carga llega rota con Cóndor Andino?» (paráfrasis, requiere Gemini).
@@ -68,6 +72,10 @@ flowchart LR
 Arquitectura hexagonal ligera ([D0](DECISIONS.md)): `domain/` (reglas puras: chunking, política de
 evidencia, resolución de transportista), `ports/` (Protocols), `adapters/` (pdfplumber, LiteLLM,
 pgvector, fakes), `services/` (ingesta, documentos, chat) y `api/` + `worker/` como capas delgadas.
+
+**Formulario:** al elegir un PDF, la web propone transportista, código, versión y vigencia leídos
+de la portada (`POST /api/documents/suggest`) y la persona los confirma ([D19](DECISIONS.md)).
+Son necesarios para filtrar por transportista, decidir la versión vigente y citar la versión.
 
 **Ingesta:** `POST /api/documents` valida (tipo por *magic bytes*, tamaño, metadatos estrictos),
 guarda el PDF, crea la fila `PENDING` y encola. El worker extrae texto y tablas por página
