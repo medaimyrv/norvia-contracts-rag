@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Mínimo privilegio: el workflow solo necesita leer el código
+permissions:
+  contents: read
+
+# Un push nuevo cancela la ejecución anterior de la misma rama
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend · lint y tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      # --locked: falla si uv.lock no corresponde a pyproject.toml
+      - name: Instalar dependencias
+        run: uv --directory backend sync --locked
+
+      # Los mismos comandos que en local: lo que pasa en tu máquina pasa en CI
+      - name: Lint
+        run: make lint
+
+      # El runner trae Docker: los tests de integración usan pgvector real (testcontainers)
+      - name: Tests (unitarios + integración)
+        run: make test
