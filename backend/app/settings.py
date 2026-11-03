@@ -10,9 +10,16 @@ from typing import Literal, Self
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Calibrados con eval/run_eval.py priorizando «no inventar» (ver eval/RESULTS.md)
+CALIBRATED_THRESHOLDS: dict[str, float] = {
+    "gemini": 0.69,  # regla «no inventar»: rechaza todas las preguntas sin respuesta del eval
+    "fake": 0.25,  # demo permisiva: el FakeLLM es extractivo y no puede inventar [D15]
+}
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # env_ignore_empty: «VAR=» en .env o compose cuenta como no definida (usa el valor por defecto)
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_ignore_empty=True)
 
     # SecretStr: no aparece en repr() ni en logs [S4]; se lee con .get_secret_value()
     database_url: SecretStr
@@ -26,7 +33,8 @@ class Settings(BaseSettings):
     llm_timeout_s: float = Field(default=30, gt=0)
 
     retrieval_k: int = Field(default=6, ge=1, le=20)
-    relevance_threshold: float = Field(default=0.35, ge=0, le=1)
+    # None -> el valor calibrado para el proveedor activo (eval/RESULTS.md) [R11, D8]
+    relevance_threshold: float | None = Field(default=None, ge=0, le=1)
 
     max_upload_mb: int = Field(default=20, gt=0)
     upload_dir: str = "/data/uploads"
@@ -42,6 +50,13 @@ class Settings(BaseSettings):
         if self.model_provider == "gemini" and not self.gemini_api_key:
             raise ValueError("MODEL_PROVIDER=gemini requiere GEMINI_API_KEY")
         return self
+
+    @property
+    def effective_relevance_threshold(self) -> float:
+        """Las puntuaciones dependen del modelo de embeddings: cada proveedor tiene su umbral."""
+        if self.relevance_threshold is not None:
+            return self.relevance_threshold
+        return CALIBRATED_THRESHOLDS[self.model_provider]
 
     @property
     def max_upload_bytes(self) -> int:

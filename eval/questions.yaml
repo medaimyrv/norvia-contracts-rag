@@ -1,0 +1,89 @@
+# Conjunto de evaluación [R13, D17].
+# Un resultado es relevante si viene de `file` y contiene `evidence` (espacios normalizados).
+# Así la referencia es estable entre estrategias de chunking (no depende de IDs de chunk).
+# `answerable: false` -> no hay respuesta en los documentos: sirve para calibrar el umbral (T13).
+
+- id: q01
+  question: ¿Cuál es el plazo de reclamación por mercancía dañada con Transportes Cóndor Andino?
+  answer: 10 días naturales desde la entrega (versión 2, vigente)
+  file: condor_andino_v2.pdf
+  evidence: diez (10) días naturales
+
+- id: q02
+  question: ¿Qué límite de responsabilidad por kilogramo tiene Rápido Austral?
+  answer: 12 EUR por kilogramo, con un máximo de 50.000 EUR por envío
+  file: rapido_austral_v1.pdf
+  evidence: 12 EUR por kilogramo
+
+- id: q03
+  question: ¿Cuál es la cobertura mínima del seguro de Mareas del Pacífico?
+  answer: 1.000.000 EUR por siniestro
+  file: mareas_pacifico_v1.pdf
+  evidence: 1.000.000 EUR por siniestro
+
+- id: q04
+  question: ¿En cuántos días hay que pagar las facturas de Cóndor Andino?
+  answer: 45 días desde su recepción
+  file: condor_andino_v2.pdf
+  evidence: plazo de 45 días
+
+- id: q05
+  question: ¿Qué recargo por combustible aplica Rápido Austral?
+  answer: 9 % sobre la tarifa base
+  file: rapido_austral_v1.pdf
+  evidence: combustible del 9%
+
+- id: q06
+  question: ¿Cuál es la tarifa base de Madrid a Valencia para más de 2.000 kg con Mareas del Pacífico?
+  answer: 596 EUR (recargo refrigerado 107 EUR)
+  file: mareas_pacifico_v1.pdf
+  evidence: Madrid - Valencia | Más de 2.000 kg | 596
+
+- id: q07
+  question: ¿Cuánto cuesta un envío de 5000 kg de Sevilla a Málaga con Vientos del Sur?
+  answer: 479 EUR
+  file: vientos_sur_v1.pdf
+  evidence: Sevilla | Málaga | 5000 | 479
+
+- id: q08
+  question: ¿Qué plazo hay para reclamar daños no aparentes con Vientos del Sur Express?
+  answer: 6 días naturales desde la entrega
+  file: vientos_sur_v1.pdf
+  evidence: seis (6) días naturales
+
+- id: q09
+  question: ¿Qué transportista no acepta mercancías peligrosas de clase 7?
+  answer: Rápido Austral Logística (no acepta clases 1 y 7 del ADR)
+  file: rapido_austral_v1.pdf
+  evidence: clases 1 (explosivos) y 7
+
+- id: q10
+  question: ¿A qué temperatura se transporta la mercancía refrigerada?
+  answer: Entre 2 °C y 8 °C (Mareas del Pacífico)
+  file: mareas_pacifico_v1.pdf
+  evidence: entre 2 °C y 8 °C
+
+- id: q11
+  # Paráfrasis sin las palabras del contrato: mide comprensión semántica, no coincidencia léxica
+  question: ¿Cuánto tiempo tengo para quejarme si la carga llega rota con Cóndor Andino?
+  answer: 10 días naturales desde la entrega
+  file: condor_andino_v2.pdf
+  evidence: diez (10) días naturales
+
+- id: q12
+  question: ¿Cuál es el plazo máximo de entrega nacional de Vientos del Sur?
+  answer: 36 horas desde la recogida
+  file: vientos_sur_v1.pdf
+  evidence: plazo máximo de 36 horas
+
+- id: u01
+  question: ¿Cuál es la política de devoluciones de una tienda online?
+  answerable: false
+
+- id: u02
+  question: ¿Qué horario de atención telefónica tiene Rápido Austral?
+  answerable: false
+
+- id: u03
+  question: ¿Cómo se llama el director general de Transportes Cóndor Andino?
+  answerable: false
