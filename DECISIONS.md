@@ -20,12 +20,18 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 **Alternativas descartadas:** Docling (mejor layout, pero arrastra torch y modelos: imagen de varios GB, lento en CPU, CI pesada); PyMuPDF (licencia AGPL).
 **Pendiente:** medir tamaño de imagen y tiempo por PDF para justificar con números.
 
-## D2 — Chunking: por cláusula + tablas como chunks propios
-**Estado:** Aceptada (estrategia final según eval)
-**Contexto:** contratos con cláusulas numeradas y anexos de tarifas [R13].
-**Decisión:** dividir por encabezados de cláusula (`^\d+(\.\d+)*\s` / `Cláusula N`) con tamaño máximo y división secundaria por párrafo. Cada tabla se serializa a Markdown como chunk `kind=table`, repitiendo la cabecera cada N filas y con prefijo de contexto (transportista, anexo).
-**Alternativa a comparar:** ventana fija (~800 tokens, solape 15 %).
-**Validación:** `eval/run_eval.py --strategy clause|fixed` → recall@k y MRR en `eval/RESULTS.md`.
+## D2 — Chunking estructural con fallback + contexto solo para el embedding
+**Estado:** Aceptada (revisada 2026-11-03; estrategia final según eval)
+**Contexto:** el enunciado describe contratos «con tablas y cláusulas» [R13]. Medido en `samples/`: cláusulas de 119–463 caracteres, una cláusula repartida entre dos páginas (`condor_andino_v1`, cláusula 8), texto extraído sin líneas en blanco (no hay párrafos detectables) y tablas de ~720 caracteres.
+**Decisión:**
+- Encabezados reconocidos: `1.` / `1.1`, `Cláusula N`, `Artículo N`, ordinales (`PRIMERA.-`, `SEGUNDA.`), `Anexo …`. Un chunk por cláusula; si supera el presupuesto (`max_chars`), se divide por apartado y después por ventana dura. Sin encabezados → ventanas. Nada del texto se pierde (invariante con test).
+- Tablas: bloques de filas completas por presupuesto (`table_max_chars`), cabecera repetida en cada bloque, `section` = encabezado anterior (p. ej. «Anexo I. Tarifas»). Una tabla en la página siguiente con el mismo número de columnas y sin cabecera se trata como continuación y reutiliza la cabecera anterior.
+- Procedencia: cada chunk declara `page_start`–`page_end`; un chunk multipágina se cita como rango, nunca como una sola página.
+- `content` (texto fuente, el que se cita) se guarda tal cual. `embedding_text` = cabecera determinista (transportista · contrato vN · sección) + contenido; se calcula con una función de dominio compartida por ingesta y eval y **no se persiste**.
+**Alternativa de referencia:** ventanas fijas de 800 caracteres con 15 % de solape; tablas como texto plano.
+**Validación:** eval B0 (fixed sin cabecera) · B1 (estructural sin cabecera) · B2 (estructural con cabecera), con embeddings reales; ver D17.
+**Descartado:** chunking o contextualización con LLM, rerankers, BM25, recuperación jerárquica (sin necesidad demostrada en este corpus); segmentos de procedencia por frase (las cláusulas son cortas y la cita muestra el fragmento completo); división por párrafo (el extractor no los produce).
+**Limitaciones:** corpus sintético generado por nosotros (riesgo de sobreajuste, mitigado con patrones genéricos, fallback y un PDF fuera de plantilla); maquetación a varias columnas y tablas sin bordes no se tratan bien (requeriría un parser de layout como Docling). Cambiar la cabecera del embedding exige reingesta.
 
 ## D3 — Versiones: conservar histórico + filtro por vigencia
 **Estado:** Aceptada
@@ -47,7 +53,7 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 ## D6 — Proveedor de modelos seleccionable; fake por defecto
 **Estado:** Aceptada
 **Contexto:** [R10], [R14], [Q1]. El evaluador puede no tener claves.
-**Decisión:** `MODEL_PROVIDER=fake|gemini`. Real: LiteLLM con Gemini (LLM) y `gemini-embedding-001` reducido a 768 dim (`dimensions=768`; `text-embedding-004` está deprecado). Fake: embeddings por bolsa de palabras hasheada (determinista, la búsqueda sigue teniendo sentido) y LLM que cita el primer chunk.
+**Decisión:** `MODEL_PROVIDER=fake|gemini`. Real: LiteLLM con Gemini (LLM) y `gemini-embedding-001` reducido a 768 dim (`dimensions=768`; `text-embedding-004` está deprecado). Fake: embeddings por bolsa de palabras hasheada (determinista; compara palabras, no significados) y LLM extractivo (ver D15).
 **Consecuencias:** `EMBEDDING_DIM` queda fijo en la migración; cambiar de modelo exige migración y reingesta (limitación conocida). No se usa un modelo local: no sería determinista y obligaría a descargar GB en la CI.
 
 ## D7 — Streaming con salida estructurada al final
@@ -86,6 +92,27 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 **Estado:** Aceptada
 **Decisión:** un único estilo (síncrono) compartido por API y worker. En los endpoints async (SSE), la recuperación se ejecuta con `run_in_threadpool`. Para filtros con HNSW se activa `hnsw.iterative_scan` (pgvector ≥ 0.8) para no devolver menos de k resultados al filtrar.
 **Alternativa descartada:** SQLAlchemy async en la API y síncrono en el worker (dos estilos y dos sesiones para el mismo esquema).
+
+## D15 — Modo sin claves: extractivo, visible y documentado
+**Estado:** Aceptada · [R14]. Sin `GEMINI_API_KEY` el sistema debe arrancar y ser útil.
+**Decisión:** (1) README explica cómo obtener una clave gratuita y activarla en `.env`; (2) el `FakeLLM` es **extractivo**: devuelve la(s) frase(s) del contexto con más solapamiento con la pregunta, con su cita (determinista, no puede alucinar); (3) la web muestra un aviso «Modo demostración» cuando `MODEL_PROVIDER=fake`; (4) `eval/RESULTS.md` publica las métricas medidas con embeddings reales.
+**Descartado:** Ollama con modelos locales (varios GB, lento en CPU, modelos pequeños rompen el formato de salida → muchas degradaciones F9); demo desplegada con nuestra clave (coste, abuso de cuota, fuera de plazo). Nunca se publica una clave en el repositorio [S2].
+
+## D16 — Resolución del transportista: filtrar solo si es casi exacto, preguntar si es parecido
+**Estado:** Aceptada · [R8]. El enunciado pide filtro por transportista y preguntas en lenguaje natural.
+**Decisión:** `resolve_carrier(question, known_carriers)` con `difflib` (sin dependencias) sobre los transportistas existentes en BD:
+- coincidencia ≥ 0,9 → filtro automático, visible en la UI («Filtrando por: …»);
+- 0,6–0,9 → evento SSE `clarification` («¿Quisiste decir …?») con botones; **no se llama al LLM**; el botón reenvía la misma pregunta con el filtro (sin estado en servidor);
+- dos o más transportistas o ninguno → sin filtro (pregunta comparativa o general);
+- la respuesta «sin evidencia» lista los transportistas disponibles.
+El usuario puede fijar el transportista a mano con un desplegable; el filtro explícito tiene prioridad.
+**Principio:** ante una ambigüedad se pregunta en vez de adivinar (misma filosofía que «sin evidencia»).
+**Descartado:** resolución de entidades con LLM o agentes; detectar nombres de transportistas desconocidos (no hay forma fiable de saber que una palabra es un nombre).
+
+## D17 — Evaluación de recuperación
+**Estado:** Aceptada · [R13].
+**Decisión:** cada pregunta guarda el archivo y una **frase de evidencia** esperada; un chunk es relevante si viene de ese archivo y contiene la frase (referencia estable entre estrategias, no IDs de chunk). Se reportan recall@1, recall@3, recall@k y MRR para B0/B1/B2 con corpus, preguntas, modelo, filtros (`only_current=true`) y k constantes. Incluye preguntas sin filtro de transportista y al menos una sobre el PDF fuera de plantilla. Las métricas publicadas se miden con **embeddings reales**; con el fake (léxico) B2 ganaría de forma trivial, así que en CI el eval solo se ejecuta como prueba del script. La abstención («sin evidencia») se evalúa aparte al calibrar el umbral (T13).
+**Limitación:** B0 frente a B1 mezcla dos cambios (segmentación y tablas). Corpus pequeño: recall@k alto puede saturarse.
 
 ---
 

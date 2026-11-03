@@ -28,9 +28,9 @@ historial persistente de conversaciones.
 | R8 | Búsqueda híbrida simple | Similitud vectorial + filtro por metadatos: `carrier` (opcional) y `only_current` (por defecto `true`). Devuelve top-k con score. |
 | R9 | Chat con streaming SSE | `POST /api/chat` → `text/event-stream` con eventos `retrieval`, `token`, `citations`, `done`, `error` (ver §4). |
 | R10 | Capa de abstracción del LLM | Puertos `LLM` y `Embedder` (Protocol). Adaptadores: `LiteLLM*` (real) y `Fake*` (determinista). Selección por `MODEL_PROVIDER`. |
-| R11 | Política anti-alucinación | Umbral `RELEVANCE_THRESHOLD` configurable. Si ningún chunk lo supera → respuesta «No encuentro evidencia…» **sin llamar al LLM**. Validación documentada con preguntas sin respuesta en el eval set. |
-| R12 | Frontend React | Subida de documentos con metadatos, vista de estado (polling), chat con streaming, citas clicables que muestran el fragmento original con documento, versión y página. |
-| R13 | Evaluación de recuperación | 10–15 preguntas con respuesta esperada y fuente (`eval/questions.yaml`). Script `eval/run_eval.py` reporta recall@k y MRR, por estrategia de chunking. Resultados en `eval/RESULTS.md`. |
+| R11 | Política anti-alucinación | Umbral `RELEVANCE_THRESHOLD` configurable. Si ningún chunk lo supera → respuesta «No encuentro evidencia…» **sin llamar al LLM**, con la lista de transportistas disponibles. Validación documentada con preguntas sin respuesta en el eval set. |
+| R12 | Frontend React | Subida de documentos con metadatos, vista de estado (polling), chat con streaming, citas clicables que muestran el fragmento original con documento, versión y rango de páginas. Desplegable de transportista, etiqueta «Filtrando por: …», botones de «¿Quisiste decir…?» (D16) y aviso de «Modo demostración» si `MODEL_PROVIDER=fake` (D15). |
+| R13 | Evaluación de recuperación | 10–15 preguntas con respuesta esperada, archivo fuente y frase de evidencia (`eval/questions.yaml`). Script `eval/run_eval.py` reporta recall@1/@3/@k y MRR para B0/B1/B2 (D17). Resultados con embeddings reales en `eval/RESULTS.md`. |
 | R14 | Un solo comando | `docker compose up --build` levanta API, worker, Redis, PostgreSQL+pgvector y frontend. Incluye PDFs sintéticos y funciona **sin claves** (`MODEL_PROVIDER=fake`). |
 
 ## 2. Requisitos de calidad
@@ -119,7 +119,8 @@ GET  /health/ready             → 200 | 503 (comprueba BD y Redis)
 ChatRequest   { question: str(3..1000), carrier: str | None, only_current: bool = true, k: int(1..20) = 6 }
 
 SSE:
-  event: retrieval   data: { k, top_score, chunks: [{chunk_id, score}] }
+  event: clarification data: { suggestions: [carrier] }   -- «¿Quisiste decir…?» (D16); termina el stream
+  event: retrieval   data: { k, top_score, carrier_filter, chunks: [{chunk_id, score}] }
   event: token       data: { text }
   event: citations   data: { citations: [CitationOut], confidence, evidence: bool }
   event: done        data: { answer: str }
@@ -143,7 +144,7 @@ LLMStructuredOutput { citations: list[{chunk_id: str}], confidence: "high" | "me
 | E2 | README: arranque desde cero, variables de entorno, hecho / no hecho, limitaciones, diagrama Mermaid |
 | E3 | DECISIONS.md |
 | E4 | Instrucciones de tests + `eval/RESULTS.md` |
-| E5 | PDFs sintéticos en `samples/` (incluye corrupto, escaneado y malicioso) |
+| E5 | PDFs sintéticos en `samples/` (incluye corrupto, escaneado, malicioso y uno fuera de plantilla) |
 
 ## 6. Trazabilidad (se completa al implementar)
 
