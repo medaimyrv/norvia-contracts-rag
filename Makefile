@@ -1,4 +1,4 @@
-.PHONY: help install lint fmt test test-unit test-integration samples eval eval-fake up down logs ps
+.PHONY: help install lint fmt test test-unit test-integration samples manual-tests eval eval-fake up down logs ps
 
 BACKEND := backend
 UV := uv --directory $(BACKEND)
@@ -28,6 +28,9 @@ test-integration:  ## Solo tests de integración (requiere Docker)
 
 samples:  ## Regenera los PDFs sintéticos de samples/ (deterministas)
 	$(UV) run python scripts/generate_samples.py
+
+manual-tests:  ## Genera pruebas_manuales/ (archivos para probar la web a mano; no se versiona)
+	$(UV) run python -m scripts.generate_manual_tests
 
 eval:  ## Eval de recuperación con Gemini (usa la caché; la clave de .env solo si faltan vectores)
 	@set -a; [ -f .env ] && . ./.env; set +a; LITELLM_MODE=PRODUCTION \
