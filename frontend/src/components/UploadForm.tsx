@@ -66,13 +66,14 @@ export function UploadForm({ carriers, onUploaded }: Props) {
     }
   }
 
+  // Plegable (<details> nativo: accesible con teclado) para que la lista de documentos se vea
   return (
-    <form
-      ref={formRef}
-      onSubmit={submit}
-      className="space-y-2 rounded-lg border border-slate-200 bg-white p-3"
-    >
-      <h2 className="font-semibold text-slate-800">Subir contrato</h2>
+    <details className="group rounded-lg border border-slate-200 bg-white">
+      <summary className="cursor-pointer list-none rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+        <span className="group-open:hidden">+ Subir contrato</span>
+        <span className="hidden group-open:inline">− Subir contrato</span>
+      </summary>
+    <form ref={formRef} onSubmit={submit} className="space-y-2 px-3 pb-3">
       {/* w-full: el control nativo (botón + nombre) no debe salirse de la columna en ningún navegador */}
       <input
         name="file"
@@ -111,5 +112,6 @@ export function UploadForm({ carriers, onUploaded }: Props) {
         </p>
       )}
     </form>
+    </details>
   );
 }

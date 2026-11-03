@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+/* La app mide exactamente la ventana. dvh se ajusta a las barras y al teclado del móvil;
+   vh es el respaldo para navegadores que no lo soportan */
+.app-viewport {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Foco de teclado siempre visible (criterio de accesibilidad) */
+:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 2px;
+}

@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { RequestError, streamChat } from "../api";
 import type { ChatEvent, Citation } from "../types";
 import { CitationPanel } from "./CitationPanel";
@@ -18,6 +18,7 @@ interface Message {
 }
 
 const CONFIDENCE: Record<string, string> = { high: "alta", medium: "media", low: "baja" };
+const NEAR_BOTTOM_PX = 80; // a menos de esto del final se considera «estoy abajo»
 
 export function Chat({ carriers }: { carriers: string[] }) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -27,6 +28,28 @@ export function Chat({ carriers }: { carriers: string[] }) {
   const abort = useRef<AbortController | null>(null);
   const busy = messages.at(-1)?.status === "streaming";
 
+  // Seguir el final solo si el usuario ya estaba abajo: si subió a leer, no se le mueve
+  const listRef = useRef<HTMLDivElement>(null);
+  const stickRef = useRef(true);
+  const [showJump, setShowJump] = useState(false);
+
+  function onScroll() {
+    const el = listRef.current!;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+    stickRef.current = near;
+    setShowJump(!near);
+  }
+
+  function scrollToBottom() {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  // Tras cada cambio (token nuevo, cita, mensaje), antes de pintar: sin saltos visibles
+  useLayoutEffect(() => {
+    if (stickRef.current) scrollToBottom();
+  }, [messages]);
+
   function update(index: number, patch: Partial<Message> | ((m: Message) => Partial<Message>)) {
     setMessages((all) =>
       all.map((m, i) => (i === index ? { ...m, ...(typeof patch === "function" ? patch(m) : patch) } : m)),
@@ -35,6 +58,8 @@ export function Chat({ carriers }: { carriers: string[] }) {
 
   async function ask(question: string, chosenCarrier: string | null, current: boolean) {
     const index = messages.length;
+    stickRef.current = true; // al preguntar, siempre se baja al final
+    setShowJump(false);
     const base = { question, answer: "", carrier: chosenCarrier, onlyCurrent: current };
     setMessages((all) => [...all, { ...base, status: "streaming" }]);
     abort.current = new AbortController();
@@ -79,8 +104,8 @@ export function Chat({ carriers }: { carriers: string[] }) {
   }
 
   return (
-    <section className="flex h-full flex-col rounded-lg border border-slate-200 bg-white">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-3 text-sm">
+    <section className="flex min-h-0 flex-1 flex-col bg-white">
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200 px-3 py-2 text-sm">
         <label className="flex items-center gap-1">
           Transportista
           <select
@@ -100,7 +125,14 @@ export function Chat({ carriers }: { carriers: string[] }) {
         </label>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-auto p-3">
+      {/* min-h-0: sin él, un hijo flex crece con su contenido y su scroll nunca se activa */}
+      <div className="relative min-h-0 flex-1">
+      <div
+        ref={listRef}
+        onScroll={onScroll}
+        className="h-full space-y-4 overflow-y-auto p-3"
+        aria-live="polite"
+      >
         {messages.length === 0 && (
           <p className="text-sm text-slate-500">
             Pregunta por plazos, tarifas, seguros… Por ejemplo: «¿Cuál es el plazo de reclamación por
@@ -109,7 +141,7 @@ export function Chat({ carriers }: { carriers: string[] }) {
         )}
         {messages.map((m, i) => (
           <article key={i} className="space-y-1">
-            <p className="ml-auto w-fit max-w-[85%] rounded-lg bg-slate-800 px-3 py-2 text-sm text-white">
+            <p className="ml-auto w-fit max-w-[85%] rounded-lg bg-slate-800 px-3 py-2 text-sm break-words text-white">
               {m.question}
             </p>
             {m.carrierFilter && (
@@ -132,7 +164,7 @@ export function Chat({ carriers }: { carriers: string[] }) {
                 </div>
               </div>
             ) : (
-              <div className="max-w-[90%] rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-800">
+              <div className="max-w-[90%] rounded-lg bg-slate-100 px-3 py-2 text-sm break-words text-slate-800">
                 {renderAnswer(m.answer, m.citations ?? [], setOpen)}
                 {m.status === "streaming" && <span className="animate-pulse">▍</span>}
                 {m.error && <p className="text-red-700">{m.error}</p>}
@@ -156,8 +188,21 @@ export function Chat({ carriers }: { carriers: string[] }) {
           </article>
         ))}
       </div>
+      {showJump && (
+        <button
+          onClick={() => {
+            stickRef.current = true;
+            setShowJump(false);
+            scrollToBottom();
+          }}
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-800 px-3 py-1 text-xs text-white shadow"
+        >
+          ↓ Ir al último
+        </button>
+      )}
+      </div>
 
-      <form onSubmit={submit} className="flex gap-2 border-t border-slate-200 p-3">
+      <form onSubmit={submit} className="flex shrink-0 gap-2 border-t border-slate-200 p-3">
         <input
           name="question"
           placeholder="Escribe tu pregunta…"

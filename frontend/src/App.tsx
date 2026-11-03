@@ -9,55 +9,102 @@ import type { AppConfig, DocumentOut } from "./types";
 const busy = (docs: DocumentOut[] | null) =>
   docs?.some((d) => d.status === "PENDING" || d.status === "PROCESSING") ?? false;
 
+/**
+ * Layout de aplicación: la raíz mide exactamente la ventana (app-viewport) y solo se desplazan
+ * por dentro la lista de documentos y el historial. Así el campo de mensaje siempre está visible.
+ */
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
+  const [docsOpen, setDocsOpen] = useState(false); // panel de documentos en móvil
   const loadConfig = useCallback(() => api.config().then(setConfig, () => setConfig(null)), []);
 
   // Polling: cada 2 s mientras algo se procesa, cada 10 s cuando todo está quieto
   const documents = usePolling(api.documents, (docs) => (busy(docs) ? 2000 : 10000));
-  const readyCount = documents.data?.filter((d) => d.status === "READY").length ?? 0;
+  const docs = documents.data ?? [];
+  const readyCount = docs.filter((d) => d.status === "READY").length;
+  const failedCount = docs.filter((d) => d.status === "FAILED").length;
 
   // Los transportistas del desplegable cambian cuando un documento pasa a READY
   useEffect(() => {
     loadConfig();
   }, [loadConfig, readyCount]);
 
+  useEffect(() => {
+    if (!docsOpen) return;
+    const close = (e: KeyboardEvent) => e.key === "Escape" && setDocsOpen(false);
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [docsOpen]);
+
   return (
-    <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-3 p-4">
-      <header>
-        <h1 className="text-xl font-bold text-slate-900">Norvia Freight · Asistente de contratos</h1>
-        {config?.demo_mode && (
-          <p className="mt-2 rounded-md bg-amber-100 px-3 py-2 text-sm text-amber-900">
-            <strong>Modo demostración:</strong> sin modelo de IA real. Las respuestas son frases
-            copiadas de los documentos y la búsqueda compara palabras, no significados. Añade{" "}
-            <code>GEMINI_API_KEY</code> y <code>MODEL_PROVIDER=gemini</code> en <code>.env</code>{" "}
-            para respuestas generativas.
-          </p>
-        )}
-        {!!config?.stale_documents && (
-          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-900">
-            <span>
-              <strong>{config.stale_documents} documento(s)</strong> se procesaron con otro modelo de
-              embeddings y no aparecen en las búsquedas.
+    <div className="app-viewport flex flex-col overflow-hidden">
+      <header className="flex shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-3 py-2">
+        <button
+          onClick={() => setDocsOpen(true)}
+          className="rounded-md border border-slate-300 px-2 py-1 text-sm md:hidden"
+          aria-label="Abrir documentos"
+        >
+          ☰ Documentos ({docs.length})
+        </button>
+        <h1 className="min-w-0 truncate font-semibold text-slate-900">
+          Norvia · Asistente de contratos
+        </h1>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          {config?.demo_mode && (
+            <details className="relative">
+              <summary className="cursor-pointer list-none rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900">
+                ● Modo demo
+              </summary>
+              <p className="absolute right-0 z-20 mt-2 w-72 rounded-md border border-amber-200 bg-white p-3 text-xs text-slate-700 shadow-lg">
+                Sin modelo de IA real: las respuestas son frases copiadas de los documentos y la
+                búsqueda compara palabras, no significados. Añade <code>GEMINI_API_KEY</code> y{" "}
+                <code>MODEL_PROVIDER=gemini</code> en <code>.env</code> para respuestas generativas.
+              </p>
+            </details>
+          )}
+          {!!config?.stale_documents && (
+            <span className="flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs text-red-900">
+              {config.stale_documents} desfasado(s)
+              <button
+                onClick={() => api.reindex().then(() => documents.refresh()).then(loadConfig)}
+                className="font-semibold underline"
+                title="Se procesaron con otro modelo de embeddings y no aparecen en las búsquedas"
+              >
+                Reindexar
+              </button>
             </span>
-            <button
-              onClick={() => api.reindex().then(() => documents.refresh()).then(loadConfig)}
-              className="rounded-md bg-red-800 px-2 py-1 text-white"
-            >
-              Reindexar
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
-      <main className="grid flex-1 gap-3 md:grid-cols-[320px_1fr]">
-        <aside className="min-w-0 space-y-3">
+      <main className="grid min-h-0 flex-1 md:grid-cols-[300px_1fr]">
+        {docsOpen && (
+          <div
+            className="fixed inset-0 z-20 bg-black/30 md:hidden"
+            onClick={() => setDocsOpen(false)}
+          />
+        )}
+        {/* En móvil es un panel lateral superpuesto; en escritorio, una columna con scroll propio */}
+        <aside
+          className={`${docsOpen ? "flex" : "hidden"} fixed inset-y-0 left-0 z-30 w-80 max-w-[85vw] flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-slate-50 p-3 shadow-xl md:static md:z-auto md:flex md:min-h-0 md:w-auto md:max-w-none md:shadow-none`}
+          aria-label="Documentos"
+        >
+          <button
+            onClick={() => setDocsOpen(false)}
+            className="self-end text-sm text-slate-500 md:hidden"
+            aria-label="Cerrar documentos"
+          >
+            ✕
+          </button>
           <UploadForm carriers={config?.carriers ?? []} onUploaded={documents.refresh} />
-          <h2 className="font-semibold text-slate-800">Documentos</h2>
+          <h2 className="text-sm font-semibold text-slate-800">
+            Documentos ({docs.length})
+            {failedCount > 0 && <span className="ml-1 text-red-700">· {failedCount} con error</span>}
+          </h2>
           {documents.error && <p className="text-sm text-red-700">{documents.error}</p>}
-          <DocumentList documents={documents.data ?? []} />
+          <DocumentList documents={docs} />
         </aside>
-        <div className="min-h-[60vh]">
+        <div className="flex min-h-0 min-w-0 flex-col">
           <Chat carriers={config?.carriers ?? []} />
         </div>
       </main>

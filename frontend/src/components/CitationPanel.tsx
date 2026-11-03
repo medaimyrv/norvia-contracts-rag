@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import type { ChunkOut, Citation } from "../types";
 
@@ -7,9 +7,30 @@ export function CitationPanel({ citation, onClose }: { citation: Citation; onClo
   const [chunk, setChunk] = useState<ChunkOut | null>(null);
   const [error, setError] = useState(false);
 
+  const closeRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     api.chunk(citation.chunk_id).then(setChunk, () => setError(true));
   }, [citation.chunk_id]);
+
+  // onClose cambia en cada render del chat (cada token): se guarda en un ref para que el efecto
+  // de foco se ejecute una sola vez al abrir y no le robe el foco al usuario durante el streaming
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // Teclado: el foco entra en el diálogo, Escape lo cierra y el foco vuelve a la cita pulsada
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCloseRef.current();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previous?.focus();
+    };
+  }, []);
 
   const pages =
     citation.page_start === citation.page_end
@@ -24,6 +45,9 @@ export function CitationPanel({ citation, onClose }: { citation: Citation; onClo
       <div
         className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-lg bg-white p-4 shadow-xl"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Fragmento citado ${citation.label}`}
       >
         <div className="mb-2 flex items-start justify-between gap-2">
           <div>
@@ -35,14 +59,19 @@ export function CitationPanel({ citation, onClose }: { citation: Citation; onClo
               {chunk?.section && ` · ${chunk.section}`}
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-800" aria-label="Cerrar">
+          <button
+            ref={closeRef}
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-800"
+            aria-label="Cerrar"
+          >
             ✕
           </button>
         </div>
         {error && <p className="text-sm text-red-700">No se pudo cargar el fragmento.</p>}
         {!chunk && !error && <p className="text-sm text-slate-500">Cargando…</p>}
         {chunk && (
-          <pre className="text-sm whitespace-pre-wrap text-slate-700">{chunk.content}</pre>
+          <pre className="text-sm break-words whitespace-pre-wrap text-slate-700">{chunk.content}</pre>
         )}
       </div>
     </div>
