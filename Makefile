@@ -1,4 +1,4 @@
-.PHONY: help install lint fmt test test-unit test-integration
+.PHONY: help install lint fmt test test-unit test-integration up down logs ps
 
 BACKEND := backend
 UV := uv --directory $(BACKEND)
@@ -25,3 +25,15 @@ test-unit:  ## Solo tests unitarios (sin Docker)
 
 test-integration:  ## Solo tests de integración (requiere Docker)
 	$(UV) run pytest -m integration
+
+up:  ## Levanta todo el stack (API, worker, PostgreSQL, Redis)
+	docker compose up --build -d
+
+down:  ## Para el stack (conserva los volúmenes)
+	docker compose down
+
+logs:  ## Sigue los logs de API y worker
+	docker compose logs -f api worker
+
+ps:  ## Estado y salud de los servicios
+	docker compose ps
