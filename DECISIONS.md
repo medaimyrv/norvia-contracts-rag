@@ -18,7 +18,7 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 **Contexto:** [R4], [F1], [F2]. Los PDFs son nativos digitales (sintéticos).
 **Decisión:** `pdfplumber` para texto por página y `extract_tables()` para tablas de tarifas. 0 caracteres extraíbles → `no_text_layer`.
 **Alternativas descartadas:** Docling (mejor layout, pero arrastra torch y modelos: imagen de varios GB, lento en CPU, CI pesada); PyMuPDF (licencia AGPL).
-**Pendiente:** medir tamaño de imagen y tiempo por PDF para justificar con números.
+**Medido (2026-11-03):** imagen del backend 552 MB sin Docling (la mayor parte es LiteLLM); extracción ~2 s por contrato de 2–4 páginas (span `ingest.extract`). Docling añadiría torch y modelos (varios GB) a la imagen y a la CI. Con PDFs nativos digitales, pdfplumber extrae bien texto, páginas y tablas con bordes; no trata bien maquetación a varias columnas ni tablas sin bordes (limitación documentada).
 
 ## D2 — Chunking estructural con fallback + contexto solo para el embedding
 **Estado:** Aceptada y **confirmada por el eval** (2026-11-03): B2 recall@1 0,92 / MRR 0,94 frente a 0,50 / 0,74 de B1 y 0,42 / 0,71 de B0 (ver `eval/RESULTS.md`)
@@ -54,7 +54,7 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 **Estado:** Aceptada
 **Contexto:** [R10], [R14], [Q1]. El evaluador puede no tener claves.
 **Decisión:** `MODEL_PROVIDER=fake|gemini`. Real: LiteLLM con Gemini: `gemini-3.5-flash-lite` (LLM; `gemini-2.5-flash` ya no está disponible para cuentas nuevas y `gemini-3.8-flash` fallaba en streaming vía LiteLLM al probarlo el 2026-11-03) y `gemini-embedding-001` reducido a 768 dim (`dimensions=768`; `text-embedding-004` está deprecado). Fake: embeddings por bolsa de palabras hasheada (determinista; compara palabras, no significados) y LLM extractivo (ver D15).
-**Consecuencias:** `EMBEDDING_DIM` queda fijo en la migración; cambiar de modelo exige migración y reingesta (limitación conocida). No se usa un modelo local: no sería determinista y obligaría a descargar GB en la CI.
+**Consecuencias:** `EMBEDDING_DIM` queda fijo en la migración; cambiar de modelo exige migración y reingesta (limitación conocida). Cada documento guarda su `embedding_model`: la búsqueda ignora los de otro modelo, `/api/config` los cuenta y `POST /api/documents/reindex` (botón en la web) los reprocesa. No se usa un modelo local: no sería determinista y obligaría a descargar GB en la CI.
 
 ## D7 — Streaming con salida estructurada al final
 **Estado:** Aceptada
@@ -80,6 +80,7 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 **Contexto:** [Q2] pide una traza que atraviese HTTP, Celery, pgvector y LLM. Ingesta y chat son flujos distintos.
 **Decisión:** traza de ingesta (HTTP → Celery → embeddings → BD), con contexto propagado por `opentelemetry-instrumentation-celery` y `trace_id` guardado en `documents`; traza de chat (HTTP → pgvector → LLM), con **span links** a la traza de ingesta de cada documento citado.
 **Alternativa descartada:** procesar el chat en Celery (rompe el streaming).
+**Implementado:** span links desde `rag.retrieve` usando `trace_id` + `ingest_span_id` guardados en el documento (migración 0002). La búsqueda vectorial tiene un span manual `pgvector.search` (la instrumentación oficial de SQLAlchemy no admite la 2.1). Consola por defecto; Jaeger con `--profile observability`.
 **Depuración de una respuesta mala:** ver README (sección Observabilidad).
 
 ## D11 — Validación de archivos por magic bytes
@@ -117,7 +118,56 @@ El usuario puede fijar el transportista a mano con un desplegable; el filtro exp
 **Decisión:** cada pregunta guarda el archivo y una **frase de evidencia** esperada; un chunk es relevante si viene de ese archivo y contiene la frase (referencia estable entre estrategias, no IDs de chunk). Se reportan recall@1, recall@3, recall@k y MRR para B0/B1/B2 con corpus, preguntas, modelo, filtros (`only_current=true`) y k constantes. Incluye preguntas sin filtro de transportista y al menos una sobre el PDF fuera de plantilla. Las métricas publicadas se miden con **embeddings reales**; con el fake (léxico) B2 ganaría de forma trivial, así que en CI el eval solo se ejecuta como prueba del script. La abstención («sin evidencia») se evalúa aparte al calibrar el umbral (T13).
 **Limitación:** B0 frente a B1 mezcla dos cambios (segmentación y tablas). Corpus pequeño: recall@k alto puede saturarse.
 
+## D18 — Concurrencia en la ingesta: bloqueo de fila + advisory lock por contrato
+**Estado:** Aceptada (2026-11-03, tras un fallo real)
+**Contexto:** con 2 procesos de worker, v1 y v2 del mismo contrato se ingirieron a la vez; cada transacción bloqueaba solo su documento y ninguna veía aún a la otra como READY, así que ambas se marcaban vigentes. El índice único parcial de D3 lo impidió con un error.
+**Decisión:** `SELECT … FOR UPDATE` sobre el documento (dos workers con el mismo documento) y `pg_advisory_xact_lock` por (transportista, contrato) al recalcular la vigencia (dos documentos del mismo contrato). Test que reproduce la carrera con dos transacciones reales.
+**Alternativas descartadas:** aislamiento SERIALIZABLE (reintentos en toda la transacción); bloquear todas las filas del contrato (más amplio de lo necesario).
+
 ---
 
 ## Uso de IA generativa
-_Se completa al final:_ flujo spec → decisiones → tareas → implementación con Claude por porciones, revisión de cada diff, tests escritos antes o junto al código, y qué se dejó fuera de alcance conscientemente.
+
+**Herramienta:** Claude Code (modelo Claude Opus) en el editor, con acceso al repositorio y a Docker.
+
+### Método
+
+1. **Especificación primero.** El enunciado se tradujo a requisitos con ID y criterios verificables
+   ([`docs/SPEC.md`](docs/SPEC.md)) y a un plan de tareas pequeñas ([`docs/TASKS.md`](docs/TASKS.md)).
+2. **Las decisiones son mías.** Para cada punto abierto la IA proponía opciones con ventajas,
+   costes y una recomendación; yo elegía. Ejemplos: priorizar «no inventar» al fijar el umbral
+   aunque se pierda una pregunta respondible, devolver 409 ante metadatos contradictorios,
+   preguntar «¿Quisiste decir…?» en vez de filtrar a ciegas, modo demo extractivo sin claves,
+   detectar el cambio de modelo de embeddings.
+3. **Implementación por porciones.** Una tarea por vez, con sus tests; revisión del diff antes de
+   cada commit; un commit por tarea con el ID del requisito; CI en verde tras cada push.
+4. **Verificación en tres niveles:** tests automáticos (171, incluidos de integración con pgvector
+   real), pruebas manuales en Docker con Gemini real (ingesta, chat, caída de Redis, prompt
+   injection, cambio de proveedor) y medición con el eval.
+
+### Errores del código generado que se detectaron, y cómo
+
+| Problema | Cómo se detectó | Corrección |
+|---|---|---|
+| `resolve_carrier` puntuaba «Mareas Pacífico» con 0,21 y «envíos express» con 0,73 (falso positivo) | Midiendo puntuaciones sobre una tabla de casos antes de confiar en la heurística | Nombre distintivo, ventanas de n±1 palabras y sin palabras de enlace; los casos medidos quedaron como tests |
+| Al cerrar el cliente el SSE, el stream del LLM seguía abierto hasta el recolector de basura | Test de F7 que comprobaba el cierre | `contextlib.aclosing` en cada generador interno |
+| Dos workers marcaban vigentes v1 y v2 a la vez | Prueba real en Docker (el índice único lo frenó) | D18 + test que reproduce la carrera |
+| LiteLLM cargaba el `.env` del desarrollador al importarse (los tests veían la clave) | Tests de configuración que empezaron a fallar | `LITELLM_MODE=PRODUCTION` en tests y compose |
+| `gemini-2.5-flash` ya no está disponible para cuentas nuevas | Llamada real a la API (los fakes no lo podían detectar) | Modelos disponibles listados y probados; `gemini-3.5-flash-lite` |
+| La instrumentación de SQLAlchemy no admite la 2.1; forzarla tumbaba la API | Arranque en Docker (los tests no inicializan las trazas) | Se retiró; span manual `pgvector.search` |
+| Un span HTTP por cada token del SSE | Inspección de la traza en Jaeger | `exclude_spans` en la instrumentación de FastAPI |
+| Recalcular la vigencia con una sola sentencia podía violar el índice único | Revisión del diseño | Apagar y encender en dos sentencias |
+| La clave de Gemini acabó en `.env.example` (versionado) antes de un commit | Revisión antes del commit | Movida a `.env`, rotación recomendada y gitleaks en CI |
+
+### Qué no se delegó
+
+Las decisiones de producto y de riesgo (umbral, modo demo, versiones, conflictos, alcance) y la
+revisión de cada diff. Las cifras del eval y las pruebas en Docker se ejecutaron y se leyeron, no se
+asumieron.
+
+### Fuera de alcance de forma consciente (72 horas)
+
+OCR de escaneados; Docling o un parser de maquetación; reranker y búsqueda léxica (BM25);
+autenticación y multiusuario; historial de conversación; borrado de documentos desde la web;
+tarea diaria que active versiones con fecha futura; tests del frontend más allá de lint y tipos;
+instrumentación genérica de SQL; evaluación con contratos y preguntas reales.

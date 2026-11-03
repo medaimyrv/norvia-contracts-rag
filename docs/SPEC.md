@@ -146,9 +146,37 @@ LLMStructuredOutput { citations: list[{chunk_id: str}], confidence: "high" | "me
 | E4 | Instrucciones de tests + `eval/RESULTS.md` |
 | E5 | PDFs sintéticos en `samples/` (incluye corrupto, escaneado, malicioso y uno fuera de plantilla) |
 
-## 6. Trazabilidad (se completa al implementar)
+## 6. Trazabilidad
 
-| ID | Implementación | Test |
-|----|----------------|------|
-| R1 | | |
-| … | | |
+Rutas relativas a `backend/` salvo indicación. Tests: `tests/unit/` (u) y `tests/integration/` (i).
+
+| ID | Implementación | Tests |
+|----|----------------|-------|
+| R1 | `app/domain/models.py` (`StrictModel`) | u `test_models.py`, u `test_answer.py` |
+| R2 | `app/api/documents.py`, `app/services/documents.py` | i `test_documents_api.py` |
+| R3 | `GET /api/documents[/{id}]` en `app/api/documents.py` | i `test_get_and_list_documents` |
+| R4 | `app/services/ingestion.py`, `app/worker/tasks.py`, `app/adapters/pdfplumber_extractor.py`, `app/domain/chunking/` | i `test_ingestion.py`, u `test_extractor.py`, u `test_chunking.py` |
+| R5 | sha256 `UNIQUE`, `DocumentService.register`, `Outcome.ALREADY_READY` | i `test_ingest_is_idempotent`, i `test_same_file_same_metadata_is_idempotent` |
+| R6 | `autoretry_for` + `retry_backoff` en `app/worker/tasks.py` | i `test_task_retries_*`, i `test_task_marks_failed_*` |
+| R7 | `migrations/versions/0001…`, `0002…`, `app/adapters/db/tables.py` | i `test_schema.py` (incl. ORM == migración) |
+| R8 | `app/adapters/db/retriever.py`, `app/domain/carriers.py` | i `test_retriever.py`, u `test_carriers.py` |
+| R9 | `app/api/chat.py`, `app/services/chat.py` | u `test_chat.py` (incl. formato SSE) |
+| R10 | `app/ports/`, `app/adapters/{fake,litellm}_providers.py`, `providers.py` | u `test_providers.py` |
+| R11 | Umbral en `ChatService`, `app/domain/answer.py`, `CALIBRATED_THRESHOLDS` | u `test_low_score_skips_llm_*`, u `test_answer.py`, `eval/RESULTS.md` |
+| R12 | `frontend/src/` | lint + tipos en CI; prueba manual |
+| R13 | `eval/questions.yaml`, `eval/run_eval.py` | u `test_eval.py`, `eval/RESULTS.md` |
+| R14 | `docker-compose.yml` (incl. `seed`) | prueba en limpio (T22) |
+| Q1 | Fakes deterministas, testcontainers | `make test` (171) |
+| Q2 | `app/observability.py`, spans en servicios | u `test_chat_trace_*`, i `test_ingestion_trace_*` |
+| Q5 | `.github/workflows/ci.yml` | 4 jobs en verde |
+| F1–F2 | `PdfplumberExtractor` + errores permanentes | u `test_extractor.py`, i `test_permanent_errors_mark_failed` |
+| F3–F4 | `LiteLLMChat` (mapeo de errores), reintento en `ChatService` | u `test_timeout_*`, u `test_rate_limit_*`, u `test_chat_maps_provider_errors` |
+| F5 | 202 + `PENDING`, sweeper, `/health/ready` | i `test_redis_down_*`, i `test_sweeper_*`, i `test_ready_*` |
+| F6 | Handler de `OperationalError`, reintento de la tarea | i `test_database_down_returns_503` |
+| F7 | `event_stream` + `aclosing` | u `test_client_disconnect_closes_llm_stream` |
+| F8 | Transacción única + `acks_late` + sweeper + locks (D18) | i `test_rerun_after_crash_*`, i `test_concurrent_versions_*` |
+| F9 | `parse_llm_output` / `finalize` | u `test_invalid_structured_output_degrades` |
+| S1 | Magic bytes, límites de tamaño, nombre saneado | i `test_file_validation`, i `test_filename_cannot_escape_storage` |
+| S2 | `pydantic-settings`, `SecretStr`, gitleaks en CI | u `test_secrets_do_not_leak_in_repr` |
+| S3 | Evidencia delimitada, citas validadas | u `test_document_cannot_close_the_evidence_tag`, i `test_injected_instructions_*` |
+| S4 | `app/logging_config.py`, `text_attributes` | u `test_logging.py`, u `test_question_text_is_not_in_spans_by_default` |
