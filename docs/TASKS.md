@@ -4,7 +4,7 @@ Porciones verticales pequeñas. Cada una: requisito(s), test que la demuestra y 
 Marca `[x]` solo cuando el test pasa **y** puedes explicar el diff.
 
 ## Día 1 — Base y datos
-- [ ] T01 Esqueleto del monorepo, `pyproject` (uv, ruff, pytest), `.env.example`, Makefile · E1, S2
+- [x] T01 Esqueleto del monorepo, `pyproject` (uv, ruff, pytest), `.env.example`, Makefile · E1, S2
 - [ ] T02 docker-compose: postgres(pgvector), redis, api, worker, frontend vacío; healthchecks · R14
 - [ ] T03 Settings con pydantic-settings + modelos de dominio estrictos + tests · R1
 - [ ] T04 Alembic: tablas `documents`/`chunks`, índice HNSW + test de integración (testcontainers) · R7

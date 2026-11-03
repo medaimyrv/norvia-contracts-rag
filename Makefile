@@ -1,0 +1,27 @@
+.PHONY: help install lint fmt test test-unit test-integration
+
+BACKEND := backend
+UV := uv --directory $(BACKEND)
+
+help:  ## Lista los comandos disponibles
+	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
+
+install:  ## Instala dependencias del backend (crea backend/.venv)
+	$(UV) sync
+
+lint:  ## Lint y formato (sin modificar archivos)
+	$(UV) run ruff check .
+	$(UV) run ruff format --check .
+
+fmt:  ## Aplica formato y arreglos automáticos
+	$(UV) run ruff check --fix .
+	$(UV) run ruff format .
+
+test:  ## Todos los tests (los de integración requieren Docker)
+	$(UV) run pytest
+
+test-unit:  ## Solo tests unitarios (sin Docker)
+	$(UV) run pytest -m "not integration"
+
+test-integration:  ## Solo tests de integración (requiere Docker)
+	$(UV) run pytest -m integration

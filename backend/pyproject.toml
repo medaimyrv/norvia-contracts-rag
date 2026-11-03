@@ -1,0 +1,54 @@
+[project]
+name = "norvia-rag"
+version = "0.1.0"
+description = "Asistente RAG de contratos con ingesta asíncrona (Norvia Freight)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "alembic>=1.20.1",
+    "celery>=5.6.3",
+    "fastapi>=0.162.0",
+    "litellm>=1.106.6",
+    "pdfplumber>=0.11.10",
+    "pgvector>=0.5.1",
+    "psycopg[binary]>=3.3.6",
+    "pydantic>=2.14.2",
+    "pydantic-settings>=2.16.2",
+    "python-multipart>=0.0.33",
+    "redis>=8.1.0",
+    "sqlalchemy>=2.1.6",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1.post1",
+    "pyyaml>=6.0.3",
+    "reportlab>=5.1.0",
+    "ruff>=0.17.3",
+    "testcontainers[postgres]>=4.15.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F: errores básicos · I: imports · B: bugs comunes · UP: sintaxis moderna
+# S: seguridad (bandit) · SIM: simplificaciones
+select = ["E", "F", "I", "B", "UP", "S", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]  # assert es lo normal en pytest
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "integration: requiere Docker (testcontainers con PostgreSQL/pgvector o Redis)",
+]
+addopts = "-ra --strict-markers"
