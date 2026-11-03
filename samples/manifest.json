@@ -36,6 +36,15 @@
     "expected": "READY"
   },
   {
+    "file": "vientos_sur_v1.pdf",
+    "carrier": "Vientos del Sur Express",
+    "contract_code": "VS-2026",
+    "version": 1,
+    "effective_from": "2026-01-15",
+    "seed": true,
+    "expected": "READY (fuera de plantilla)"
+  },
+  {
     "file": "injection_test.pdf",
     "carrier": "Proveedor de Pruebas",
     "contract_code": "PP-2026",

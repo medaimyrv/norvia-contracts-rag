@@ -319,6 +319,141 @@ INJECTION_CONTRACT = Contract(
 )
 
 
+# --- Contrato fuera de plantilla: otra numeración, otra tabla, otro pie [D2] ---
+# Encabezados ordinales, apartados con letras, una cláusula larga (activa el fallback) y una tabla
+# que continúa en la página siguiente sin repetir la cabecera.
+OFF_TEMPLATE = {
+    "file": "vientos_sur_v1.pdf",
+    "carrier": "Vientos del Sur Express",
+    "contract_code": "VS-2026",
+    "version": 1,
+    "effective_from": "2026-01-15",
+}
+OFF_TEMPLATE_CLAUSES = [
+    (
+        "PRIMERA.- OBJETO",
+        [
+            "El presente contrato marco establece las condiciones en que Vientos del Sur Express "
+            "presta a Norvia Freight servicios de transporte de carga fraccionada y completa.",
+        ],
+    ),
+    (
+        "SEGUNDA.- ÁMBITO TERRITORIAL",
+        [
+            "Los servicios se prestarán en la península ibérica. Los envíos a las islas requieren "
+            "presupuesto previo.",
+        ],
+    ),
+    (
+        "TERCERA.- OBLIGACIONES DE LAS PARTES",
+        [
+            "a) El Transportista pondrá a disposición vehículos adecuados al tipo de mercancía.",
+            "b) El Cliente entregará la mercancía correctamente embalada y etiquetada.",
+            "c) Ambas partes designarán un interlocutor para la gestión de incidencias.",
+        ],
+    ),
+    (
+        "CUARTA.- PLAZOS DE ENTREGA",
+        [
+            "Las entregas nacionales se realizarán en un plazo máximo de 36 horas desde la recogida.",
+        ],
+    ),
+    (
+        "QUINTA.- PRECIO Y FORMA DE PAGO",
+        [
+            "Los precios son los del Anexo I. Se aplicará un recargo por combustible del 10% y el "
+            "pago se realizará a 40 días fecha factura.",
+        ],
+    ),
+    (
+        "SEXTA.- RESPONSABILIDAD Y RECLAMACIONES",
+        [
+            "a) La responsabilidad del Transportista por pérdida o avería de la mercancía queda "
+            "limitada a 11 EUR por kilogramo de peso bruto afectado, salvo declaración de valor "
+            "expresamente aceptada por escrito y abonada con el correspondiente suplemento.",
+            "b) El Transportista no responderá de los daños derivados de embalaje insuficiente, vicio "
+            "propio de la mercancía, actos del Cliente o de sus dependientes, ni de circunstancias de "
+            "fuerza mayor debidamente acreditadas, tales como fenómenos meteorológicos extremos, "
+            "cortes de carretera ordenados por la autoridad o conflictos laborales ajenos a la empresa.",
+            "c) Los daños aparentes deberán hacerse constar como reserva en el albarán de entrega en "
+            "el mismo momento de la recepción, con indicación precisa de los bultos afectados.",
+            "d) Los daños no aparentes deberán reclamarse por escrito en un plazo de seis (6) días "
+            "naturales desde la entrega. Transcurrido dicho plazo se presumirá que la mercancía se "
+            "entregó en buen estado.",
+            "e) En caso de pérdida total, la reclamación podrá presentarse en un plazo de veinticinco "
+            "(25) días naturales desde la fecha prevista de entrega.",
+            "f) Toda reclamación incluirá la referencia del envío, una descripción de los daños, "
+            "fotografías, el albarán firmado con las reservas oportunas y la valoración económica "
+            "documentada mediante factura comercial.",
+            "g) El Transportista resolverá las reclamaciones en un plazo máximo de 30 días desde la "
+            "recepción de la documentación completa, comunicando por escrito su aceptación o rechazo "
+            "motivado.",
+        ],
+    ),
+    (
+        "SÉPTIMA.- SEGUROS",
+        [
+            "El Transportista mantendrá una póliza de responsabilidad civil con una cobertura mínima "
+            "de 600.000 EUR por siniestro.",
+        ],
+    ),
+    (
+        "OCTAVA.- RESOLUCIÓN",
+        [
+            "El contrato podrá resolverse por incumplimiento grave con un preaviso de 30 días.",
+        ],
+    ),
+]
+OFF_TEMPLATE_CITIES = ["Madrid", "Barcelona", "Valencia", "Sevilla", "Bilbao", "Zaragoza", "Málaga"]
+
+
+def off_template_rows() -> list[list[str]]:
+    rows = [["Origen", "Destino", "Peso máximo (kg)", "Precio (EUR)"]]
+    for i, origin in enumerate(OFF_TEMPLATE_CITIES):
+        for j, dest in enumerate(OFF_TEMPLATE_CITIES):
+            if origin == dest:
+                continue
+            for k, weight in enumerate([1000, 5000]):
+                rows.append([origin, dest, str(weight), str(120 + 15 * i + 9 * j + 260 * k)])
+    return rows
+
+
+def build_off_template_contract() -> bytes:
+    styles = getSampleStyleSheet()
+    story = [
+        Paragraph("CONTRATO MARCO DE SERVICIOS DE TRANSPORTE", styles["Title"]),
+        Paragraph(
+            "Vientos del Sur Express · Ref. VS-2026 · Edición 1 · En vigor desde el 15 de enero "
+            "de 2026",
+            styles["Normal"],
+        ),
+        Spacer(1, 0.6 * cm),
+    ]
+    for title, items in OFF_TEMPLATE_CLAUSES:
+        story.append(Paragraph(title, styles["Heading3"]))
+        story += [Paragraph(item, styles["BodyText"]) for item in items]
+    story += [Spacer(1, 0.6 * cm), Paragraph("ANEXO I - TARIFAS POR TRAYECTO", styles["Heading3"])]
+    table = Table(off_template_rows())  # sin repeatRows: la cabecera no se repite al paginar
+    table.setStyle(
+        TableStyle(
+            [
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    story.append(table)
+
+    def on_page(canv: canvas.Canvas, doc: SimpleDocTemplate) -> None:
+        canv.setFont("Helvetica", 8)
+        canv.drawString(2 * cm, 1.2 * cm, "Vientos del Sur Express - Documento confidencial")
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, title="VS-2026")
+    doc.build(story, onFirstPage=on_page, onLaterPages=on_page)
+    return buf.getvalue()
+
+
 def generate(out_dir: Path) -> list[dict[str, object]]:
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest: list[dict[str, object]] = []
@@ -337,6 +472,9 @@ def generate(out_dir: Path) -> list[dict[str, object]]:
     for c in CONTRACTS:
         (out_dir / c.file).write_bytes(build_contract(c))
         manifest.append(meta(c, seed=True, expected="READY"))
+
+    (out_dir / OFF_TEMPLATE["file"]).write_bytes(build_off_template_contract())
+    manifest.append({**OFF_TEMPLATE, "seed": True, "expected": "READY (fuera de plantilla)"})
 
     (out_dir / INJECTION_CONTRACT.file).write_bytes(
         build_contract(INJECTION_CONTRACT, extra=[INJECTION])

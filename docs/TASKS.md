@@ -11,7 +11,7 @@ Marca `[x]` solo cuando el test pasa **y** puedes explicar el diff.
 - [x] T20 GitHub Actions: lint + tests (adelantada; el build de imágenes se añade en T21) · Q5
 - [x] T05 Generador de PDFs sintéticos (3 transportistas, 2 versiones, tablas, corrupto, escaneado, malicioso) · E5
 - [x] T06 Extractor pdfplumber + errores `invalid_pdf` / `no_text_layer` + tests · R4, F1, F2
-- [ ] T07 Chunkers `clause` (fallback, tablas por presupuesto y continuación entre páginas) y `fixed`; `build_embedding_text`; PDF fuera de plantilla en samples/; tests (incl. «no se pierde texto») · R4, D2, E5
+- [x] T07 Chunkers `clause` (fallback, tablas por presupuesto y continuación entre páginas) y `fixed`; `build_embedding_text`; PDF fuera de plantilla en samples/; tests (incl. «no se pierde texto») · R4, D2, E5
 - [ ] T08 Puertos + `FakeEmbedder` / `FakeLLM` extractivo + adaptadores LiteLLM · R10, D15
 - [ ] T09 Servicio `ingest_document` (transacción única, idempotente) + tarea Celery con reintentos + tests · R4, R5, R6, F8
 - [ ] T10 `POST /api/documents` + `GET /api/documents[/{id}]` + validación de archivo + tests · R2, R3, S1
