@@ -39,3 +39,22 @@ jobs:
       # El runner trae Docker: los tests de integración usan pgvector real (testcontainers)
       - name: Tests (unitarios + integración)
         run: make test
+
+  frontend:
+    name: Frontend · lint y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      # tsc -b (tipos) + vite build
+      - run: npm run build

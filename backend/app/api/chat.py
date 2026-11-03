@@ -7,8 +7,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.api.deps import get_chat_service
+from app.adapters.db.retriever import PgVectorRetriever
+from app.adapters.providers import Providers
+from app.api.deps import get_chat_service, get_providers, get_sessions
 from app.domain.models import ChatRequest
 from app.services.chat import (
     Answer,
@@ -84,3 +87,16 @@ async def chat(
         # Sin caché ni buffering en proxies: los tokens deben llegar según se generan
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.get("/config")
+def config(
+    providers: Annotated[Providers, Depends(get_providers)],
+    sessions: Annotated[sessionmaker[Session], Depends(get_sessions)],
+) -> dict[str, object]:
+    """Lo que la web necesita saber: modo demo [D15] y transportistas disponibles [D16]."""
+    return {
+        "demo_mode": providers.is_fake,
+        "llm_model": providers.llm.model,
+        "carriers": PgVectorRetriever(sessions).known_carriers(),
+    }

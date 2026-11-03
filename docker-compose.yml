@@ -94,6 +94,16 @@ services:
       retries: 3
       start_period: 20s
 
+  # Web: nginx sirve la SPA y redirige /api a la API (mismo origen, SSE sin buffering)
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
   # Carga inicial: sube por la API los PDFs seed=true de samples/ y termina [R14].
   # Idempotente: en arranques posteriores recibe 200 (ya existía) en vez de 202
   seed:

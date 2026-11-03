@@ -21,8 +21,8 @@ Marca `[x]` solo cuando el test pasa **y** puedes explicar el diff.
 - [x] T12 Eval set (frase de evidencia) + `run_eval.py` B0/B1/B2 con embeddings reales → `RESULTS.md` · R13, D2, D17
 - [x] T13 Política de evidencia (lista de transportistas en «sin evidencia») + parser de salida estructurada + tests · R11, D7, F9
 - [x] T14 `POST /api/chat` SSE + evento `clarification` + manejo de desconexión, timeout y rate limit + tests · R9, F3, F4, F7, D16
-- [ ] T15 Frontend: Vite + servicio en compose + subida + lista de estado (polling) · R12, R14
-- [ ] T16 Frontend: chat en streaming + panel de cita + desplegable/«Filtrando por»/«¿Quisiste decir?» + aviso modo demo · R12, D15, D16
+- [x] T15 Frontend: Vite + servicio en compose + subida + lista de estado (polling) · R12, R14
+- [x] T16 Frontend: chat en streaming + panel de cita + desplegable/«Filtrando por»/«¿Quisiste decir?» + aviso modo demo · R12, D15, D16
 
 ## Día 3 — Calidad y entrega
 - [ ] T17 OpenTelemetry: instrumentación, spans manuales, atributos, span links · Q2, D10

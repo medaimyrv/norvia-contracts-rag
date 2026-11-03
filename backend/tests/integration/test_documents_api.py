@@ -154,3 +154,9 @@ def test_database_down_returns_503(client) -> None:
     response = client.get("/api/documents")
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "database_unavailable"
+
+
+def test_config_reports_demo_mode_and_carriers(client) -> None:
+    body = client.get("/api/config").json()
+    assert body["demo_mode"] is True  # MODEL_PROVIDER por defecto: fake
+    assert body["carriers"] == []  # aún no hay documentos READY
