@@ -1,13 +1,11 @@
 """Ingesta y tarea Celery contra PostgreSQL+pgvector real [R4, R5, R6, F1, F2, F8, D3, D4]."""
 
-import hashlib
 from datetime import date, timedelta
 from pathlib import Path
 from uuid import UUID
 
 import pytest
 from sqlalchemy import Engine, delete, func, select
-from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db.session import session_factory_for
 from app.adapters.db.tables import Chunk, Document
@@ -21,6 +19,7 @@ from app.services.ingestion import IngestionService, Outcome
 from app.worker import tasks
 from app.worker.celery_app import celery_app
 from scripts.generate_samples import ROOT
+from tests.integration.helpers import register_sample
 
 pytestmark = pytest.mark.integration
 SAMPLES = ROOT / "samples"
@@ -64,30 +63,8 @@ def make_service(sessions, storage, embedder=None) -> IngestionService:
     )
 
 
-def register(
-    sessions: sessionmaker[Session],
-    storage: LocalFileStorage,
-    sample: str,
-    *,
-    version: int = 1,
-    effective_from: date = date(2025, 1, 1),
-    contract_code: str = "CA-2025",
-) -> UUID:
-    data = (SAMPLES / sample).read_bytes()
-    sha = hashlib.sha256(data).hexdigest()
-    storage.save(sha, data)
-    with sessions.begin() as s:
-        doc = Document(
-            sha256=sha,
-            filename=sample,
-            carrier="Transportes Cóndor Andino",
-            contract_code=contract_code,
-            version=version,
-            effective_from=effective_from,
-        )
-        s.add(doc)
-        s.flush()
-        return doc.id
+def register(sessions, storage, sample: str, **meta) -> UUID:
+    return register_sample(sessions, storage, sample, **meta)
 
 
 def get(sessions, doc_id: UUID) -> Document:
