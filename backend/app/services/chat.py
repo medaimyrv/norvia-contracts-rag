@@ -82,7 +82,8 @@ class ChatService:
     embedder: Embedder
     llm: LLM
     retriever: Retriever
-    threshold: float
+    threshold: float  # pregunta que nombra un transportista [D8]
+    general_threshold: float | None = None  # pregunta general o comparativa (None = threshold)
     capture_content: bool = False  # OTEL_CAPTURE_CONTENT: preguntas/respuestas en spans [S4]
 
     async def stream(self, request: ChatRequest) -> AsyncIterator[ChatEvent]:
@@ -108,9 +109,16 @@ class ChatService:
         known = await _in_span(root, self.retriever.known_carriers, end=False)
 
         # 1. Transportista: el filtro explícito manda; si no, se resuelve en la pregunta [D16]
+        resolution = resolve_carrier(request.question, known)
+        # Umbral según si la pregunta NOMBRA un transportista (así se calibró), no según el filtro
+        names_carrier = resolution.match is Match.EXACT
+        threshold = (
+            self.threshold
+            if names_carrier or self.general_threshold is None
+            else self.general_threshold
+        )
         carrier = request.carrier
         if carrier is None:
-            resolution = resolve_carrier(request.question, known)
             root.set_attribute("rag.carrier_resolution", resolution.match.value)
             if resolution.match is Match.SUGGESTION:
                 root.set_attribute("rag.outcome", "clarification")
@@ -140,7 +148,8 @@ class ChatService:
             {
                 "rag.k": len(chunks),
                 "rag.top_score": retrieval.top_score,
-                "rag.threshold": self.threshold,
+                "rag.threshold": threshold,
+                "rag.threshold_kind": "named" if names_carrier else "general",
                 "rag.scores": [round(c.score, 4) for c in chunks],
                 "rag.documents": sorted({c.filename for c in chunks}),
             }
@@ -153,7 +162,7 @@ class ChatService:
         yield retrieval
 
         # 3. Capa 1 de D8: sin evidencia suficiente no se llama al LLM
-        if retrieval.top_score < self.threshold:
+        if retrieval.top_score < threshold:
             root.set_attributes({"rag.outcome": "no_evidence", "rag.evidence": False})
             yield Answer(no_evidence_answer(known))
             return
@@ -181,7 +190,7 @@ class ChatService:
             llm_span.end()
 
         parsed = parse_llm_output(raw)
-        final = finalize(parsed, chunks, retrieval.top_score, self.threshold, known)
+        final = finalize(parsed, chunks, retrieval.top_score, threshold, known)
         root.set_attributes(
             {
                 "rag.outcome": "answer" if final.evidence else "no_evidence",

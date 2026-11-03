@@ -99,7 +99,7 @@ Todas en [`.env.example`](.env.example); ninguna es obligatoria para arrancar.
 | `LLM_MODEL` / `EMBEDDING_MODEL` | `gemini/gemini-3.5-flash-lite` / `gemini/gemini-embedding-001` | Modelos vía LiteLLM |
 | `EMBEDDING_DIM` | `768` | Fijada en la migración; si no coincide, la app no arranca |
 | `RETRIEVAL_K` | `6` | Fragmentos recuperados por pregunta |
-| `RELEVANCE_THRESHOLD` | vacío | Vacío = calibrado por proveedor (gemini 0,69 · fake 0,25) |
+| `RELEVANCE_THRESHOLD` | vacío | Vacío = calibrado por proveedor y tipo de pregunta (gemini 0,70 si nombra transportista / 0,63 general · fake 0,25) |
 | `MAX_UPLOAD_MB` | `20` | Tamaño máximo de PDF |
 | `LLM_TIMEOUT_S` | `30` | Timeout de cada llamada al proveedor |
 | `OTEL_EXPORTER` | `console` | `console` o `otlp` (Jaeger) |

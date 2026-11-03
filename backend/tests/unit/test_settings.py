@@ -50,3 +50,11 @@ def test_secrets_do_not_leak_in_repr() -> None:
 
 def test_max_upload_bytes() -> None:
     assert make(max_upload_mb=2).max_upload_bytes == 2 * 1024 * 1024
+
+
+def test_thresholds_are_per_provider_and_question_kind() -> None:
+    assert make(model_provider="gemini", gemini_api_key="k").effective_relevance_thresholds == (
+        0.70,
+        0.63,
+    )
+    assert make(relevance_threshold=0.5).effective_relevance_thresholds == (0.5, 0.5)

@@ -223,16 +223,20 @@ def report(provider: str, model: str, results: dict[str, list[dict]]) -> str:
         f"Corpus: PDFs `seed=true` de `samples/` · solo versiones vigentes · k={K} · "
         "filtro de transportista con `resolve_carrier`.",
         "",
-        f"| Estrategia | recall@1 | recall@3 | recall@{K} | MRR | umbral calibrado | "
-        "respondibles rechazadas |",
-        "|---|---|---|---|---|---|---|",
+        f"| Estrategia | recall@1 | recall@3 | recall@{K} | MRR | umbral único | "
+        "umbral con transportista | umbral general | respondibles rechazadas (2 umbrales) |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for name, rows in results.items():
         m = metrics(rows)
-        threshold, lost = calibrate_threshold(rows)
+        single, _ = calibrate_threshold(rows)
+        # Dos grupos: la pregunta nombra un transportista (filtro detectado) o es general [D8]
+        named, lost_named = calibrate_threshold([r for r in rows if r["carrier_filter"]])
+        general, lost_general = calibrate_threshold([r for r in rows if not r["carrier_filter"]])
         lines.append(
             f"| {name} {STRATEGIES[name]} | {m['recall@1']:.2f} | {m['recall@3']:.2f} | "
-            f"{m[f'recall@{K}']:.2f} | {m['MRR']:.2f} | {threshold:.2f} | {lost} |"
+            f"{m[f'recall@{K}']:.2f} | {m['MRR']:.2f} | {single:.2f} | {named:.2f} | "
+            f"{general:.2f} | {lost_named + lost_general} |"
         )
     lines += ["", "Rango del primer resultado relevante por pregunta (— = no está en el top-k):", ""]
     lines.append("| Pregunta | filtro | " + " | ".join(results) + " | top score (B2) |")

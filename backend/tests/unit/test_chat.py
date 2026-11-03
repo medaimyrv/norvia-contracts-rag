@@ -260,3 +260,24 @@ async def test_llm_error_is_recorded_in_span(spans) -> None:
     assert llm.status.status_code.name == "ERROR"
     root = next(s for s in spans.get_finished_spans() if s.name == "rag.chat")
     assert root.attributes["error.code"] == "llm_timeout"
+
+
+# --- Dos umbrales: pregunta que nombra un transportista o general [D8] ---
+
+
+async def test_general_question_uses_general_threshold() -> None:
+    # Comparativa sin transportista con puntuación 0,68: pasa el umbral general (0,63)
+    llm = ScriptedLLM(VALID)
+    retriever = MemoryRetriever(score=0.68)
+    svc = ChatService(FakeEmbedder(), llm, retriever, 0.70, general_threshold=0.63)
+    events = await run(svc, question="¿Qué transportista entrega más rápido?")
+    assert llm.calls == 1 and events[-1].final.evidence
+
+
+async def test_named_question_uses_named_threshold() -> None:
+    # Misma puntuación, pero la pregunta nombra al transportista: umbral 0,70 -> sin evidencia
+    llm = ScriptedLLM(VALID)
+    retriever = MemoryRetriever(score=0.68)
+    svc = ChatService(FakeEmbedder(), llm, retriever, 0.70, general_threshold=0.63)
+    events = await run(svc, question="¿Cómo se llama el director de Transportes Cóndor Andino?")
+    assert llm.calls == 0 and not events[-1].final.evidence

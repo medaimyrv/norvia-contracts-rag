@@ -28,7 +28,7 @@ def test_exact_match_filters_automatically(question: str, carrier: str) -> None:
     assert resolve_carrier(question, KNOWN).carriers == [carrier]
 
 
-@pytest.mark.parametrize("question", ["¿Plazo con Candor Andina?", "¿Plazo de Cóndor?"])
+@pytest.mark.parametrize("question", ["¿Plazo con Candor Andina?", "¿Plazo con Kondor Andina?"])
 def test_ambiguous_name_asks_did_you_mean(question: str) -> None:
     result = resolve_carrier(question, KNOWN)
     assert result.match is Match.SUGGESTION
@@ -42,6 +42,9 @@ def test_ambiguous_name_asks_did_you_mean(question: str) -> None:
         "¿Plazo de reclamación con Transportes Pepe?",  # desconocido
         "¿Hay tarifas express para el sur?",  # palabras genéricas sueltas
         "¿Cuánto cuestan los envíos express?",  # «express» no basta para sugerir
+        "De los transportistas, ¿quién entrega más rápido?",  # «rápido» es una palabra corriente
+        "¿Hay mareas fuertes en el sur?",  # una palabra del nombre no basta para sugerir
+        "¿Plazo de Cóndor?",  # nombre incompleto: búsqueda general (la cabecera ya ayuda)
         "Compara Cóndor Andino y Rápido Austral",  # comparativa: no se filtra
     ],
 )

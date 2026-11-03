@@ -67,7 +67,7 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 **Decisión:** (1) `top_score < RELEVANCE_THRESHOLD` → «sin evidencia» sin llamar al LLM; (2) el prompt obliga a responder `SIN_EVIDENCIA` si el contexto no lo sostiene; (3) sin citas válidas tras validar → «sin evidencia».
 **Validación:** el eval set incluye preguntas sin respuesta; se calibra el umbral con un barrido (precisión de «sin evidencia» frente a recall de las respondibles).
 
-**Umbrales calibrados (2026-11-03, `eval/RESULTS.md`):** con `gemini-embedding-001`, prioridad «no inventar» → **0,69** (rechaza las 3 preguntas sin respuesta del eval y pierde 1 de 12 con respuesta). En modo demo (`fake`) → **0,25**, permisivo a propósito porque el FakeLLM es extractivo. `RELEVANCE_THRESHOLD` permite fijar otro valor.
+**Umbrales calibrados (2026-11-03, `eval/RESULTS.md`):** con `gemini-embedding-001` y la prioridad «no inventar», **dos umbrales**: **0,70** si el texto de la pregunta nombra un transportista y **0,63** si es general o comparativa. Con uno solo (0,69) no había separación: nombrar al transportista sube la puntuación de las preguntas sin respuesta (coincide con la cabecera de contexto) y las generales puntúan más bajo; se perdían preguntas como «¿quién entrega más rápido?». Con dos, cada grupo del eval se separa sin errores. En modo demo (`fake`), **0,25** para ambos (permisivo: el FakeLLM es extractivo). `RELEVANCE_THRESHOLD` fija un valor único.
 **Confianza final:** el mínimo entre la que declara el LLM y la que indica la búsqueda (margen sobre el umbral: +0,10 alta, +0,03 media).
 
 ## D9 — SSE por POST con fetch
@@ -106,7 +106,7 @@ Las referencias `[Rx]`, `[Fx]`, `[Sx]`, `[Qx]` apuntan a `docs/SPEC.md`.
 **Estado:** Aceptada · [R8]. El enunciado pide filtro por transportista y preguntas en lenguaje natural.
 **Decisión:** `resolve_carrier(question, known_carriers)` con `difflib` (sin dependencias) sobre los transportistas existentes en BD:
 - coincidencia ≥ 0,9 → filtro automático, visible en la UI («Filtrando por: …»);
-- 0,6–0,9 → evento SSE `clarification` («¿Quisiste decir …?») con botones; **no se llama al LLM**; el botón reenvía la misma pregunta con el filtro (sin estado en servidor);
+- si no, y **cada palabra** del nombre distintivo se parece ≥ 0,7 a alguna de la pregunta → evento SSE `clarification` («¿Quisiste decir …?») con botones; **no se llama al LLM**; el botón reenvía la misma pregunta con el filtro (sin estado en servidor). Exigir todas las palabras evita sugerencias por palabras corrientes que forman parte de nombres («rápido», «mareas», «sur»);
 - dos o más transportistas o ninguno → sin filtro (pregunta comparativa o general);
 - la respuesta «sin evidencia» lista los transportistas disponibles.
 El usuario puede fijar el transportista a mano con un desplegable; el filtro explícito tiene prioridad.

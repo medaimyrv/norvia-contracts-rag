@@ -41,28 +41,37 @@ Detalle completo: [`results_gemini.md`](results_gemini.md) (embeddings reales) y
 
 ## Umbral de relevancia [R11, D8]
 
-Puntuación del mejor resultado con B2:
+Puntuación del mejor resultado con B2, separando si la pregunta **nombra un transportista**:
 
-| Grupo | Puntuaciones |
-|---|---|
-| Con respuesta | 0,670 (q09) · 0,706 · 0,723 · 0,776 · 0,777 · 0,793 · 0,793 · 0,794 · 0,796 · 0,827 · 0,851 · 0,864 |
-| Sin respuesta | 0,599 (u01) · 0,666 (u02) · 0,683 (u03) |
+| Grupo | Con respuesta | Sin respuesta |
+|---|---|---|
+| Nombra un transportista | 0,706 · 0,723 · 0,776 · 0,777 · 0,793 · 0,793 · 0,794 · 0,796 · 0,827 · 0,851 · 0,864 | 0,666 (u02) · 0,683 (u03) |
+| General o comparativa | 0,670 (q09) · 0,706 (q10) | 0,599 (u01) |
 
-No hay un valor que separe ambos grupos. Con la prioridad **«no inventar»** el umbral queda en
-**0,69**: ninguna pregunta sin respuesta pasa la capa 1, y se pierde **q09** («¿qué transportista
-no acepta mercancías de clase 7?»), que no nombra transportista y puntúa algo menos. **u03**
-(«¿director general de Transportes Cóndor Andino?») puntúa alto solo por repetir el nombre del
-transportista, que también está en la cabecera de B2.
+Con **un único umbral** no hay separación: u03 («¿director general de Transportes Cóndor
+Andino?») puntúa 0,683 solo por repetir el nombre, que también está en la cabecera de B2, y
+q09 («¿qué transportista no acepta mercancías de clase 7?») puntúa 0,670 porque no nombra a
+ninguno. La regla «no inventar» daba 0,69 y perdía q09 y las preguntas comparativas
+(«¿quién entrega más rápido?» puntúa 0,680).
+
+**Decisión: dos umbrales**, uno por grupo, ambos con la regla «no inventar». Cada grupo se separa
+perfectamente: **0,70** si la pregunta nombra un transportista y **0,63** si es general.
+Ninguna pregunta sin respuesta pasa la capa 1 y ninguna con respuesta se pierde.
+
+El criterio es si el **texto de la pregunta** nombra a un transportista (así se midió), no si
+hay filtro: con el transportista elegido en el desplegable y sin nombrarlo, la puntuación se
+comporta como la de una pregunta general.
+
+| Proveedor | Con transportista | General | Motivo |
+|---|---|---|---|
+| `gemini` | **0,70** | **0,63** | Calibrados con la regla «no inventar» por grupo |
+| `fake` (demo sin clave) | **0,25** | **0,25** | Permisivo a propósito: el FakeLLM es extractivo y no puede inventar |
+
+`RELEVANCE_THRESHOLD` fija el mismo valor para los dos. **Riesgo:** calibrado con 15
+preguntas; con preguntas reales habría que recalibrar.
 
 Aunque una pregunta sin respuesta superara el umbral, quedan dos capas: el LLM debe responder
 `SIN_EVIDENCIA` y se descartan las respuestas sin citas válidas.
-
-| Proveedor | Umbral por defecto | Motivo |
-|---|---|---|
-| `gemini` | **0,69** | Calibrado con la regla «no inventar» |
-| `fake` (demo sin clave) | **0,25** | Permisivo a propósito: el FakeLLM es extractivo (copia frases con su cita) y no puede inventar. Con 0,44 (misma regla) la demo rechazaría 7 de 12 preguntas válidas |
-
-Se puede fijar otro valor con `RELEVANCE_THRESHOLD`.
 
 ## Proveedor falso
 

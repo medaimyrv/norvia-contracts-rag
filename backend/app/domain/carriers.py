@@ -9,7 +9,10 @@ from difflib import SequenceMatcher
 from enum import StrEnum
 
 EXACT = 0.9
-SUGGEST = 0.6
+# Para sugerir, CADA palabra del nombre distintivo debe parecerse al menos esto a alguna palabra
+# de la pregunta. Con una sola palabra no basta: «rápido», «mareas» o «sur» son palabras
+# corrientes y provocaban «¿Quisiste decir…?» en preguntas generales
+SUGGEST = 0.7
 MAX_SUGGESTIONS = 3
 MIN_VARIANT_CHARS = 5  # nombres muy cortos casan por azar con palabras normales
 
@@ -71,6 +74,17 @@ def best_known_carrier(text: str, known_carriers: list[str]) -> tuple[str | None
     return carrier, score
 
 
+def _every_word_close(question_words: list[str], variant: str) -> float:
+    """El parecido de la palabra del nombre peor representada en la pregunta."""
+    return min(
+        (
+            max((SequenceMatcher(None, q, w).ratio() for q in question_words), default=0.0)
+            for w in variant.split()
+        ),
+        default=0.0,
+    )
+
+
 def resolve_carrier(question: str, known_carriers: list[str]) -> CarrierResolution:
     words = normalize(question).split()
     scores = {carrier: _score(words, _variant(carrier)) for carrier in known_carriers}
@@ -79,7 +93,8 @@ def resolve_carrier(question: str, known_carriers: list[str]) -> CarrierResoluti
         return CarrierResolution(Match.EXACT, exact)
     if len(exact) > 1:
         return CarrierResolution(Match.NONE)  # compara varios transportistas: no se filtra
-    close = sorted((c for c, s in scores.items() if s >= SUGGEST), key=lambda c: -scores[c])
+    coverage = {c: _every_word_close(words, _variant(c)) for c in known_carriers}
+    close = sorted((c for c, s in coverage.items() if s >= SUGGEST), key=lambda c: -coverage[c])
     if close:
         return CarrierResolution(Match.SUGGESTION, close[:MAX_SUGGESTIONS])
     return CarrierResolution(Match.NONE)

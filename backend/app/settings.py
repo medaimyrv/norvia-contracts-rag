@@ -11,9 +11,13 @@ from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Calibrados con eval/run_eval.py priorizando «no inventar» (ver eval/RESULTS.md)
-CALIBRATED_THRESHOLDS: dict[str, float] = {
-    "gemini": 0.69,  # regla «no inventar»: rechaza todas las preguntas sin respuesta del eval
-    "fake": 0.25,  # demo permisiva: el FakeLLM es extractivo y no puede inventar [D15]
+# Calibrados con eval/run_eval.py priorizando «no inventar» (ver eval/RESULTS.md).
+# Dos umbrales: si la pregunta nombra a un transportista, coincide con la cabecera de contexto
+# de los fragmentos y las puntuaciones suben (también las de preguntas sin respuesta) [D8]
+CALIBRATED_THRESHOLDS: dict[str, dict[str, float]] = {
+    "gemini": {"named": 0.70, "general": 0.63},
+    # Demo permisiva: el FakeLLM es extractivo y no puede inventar [D15]
+    "fake": {"named": 0.25, "general": 0.25},
 }
 
 
@@ -53,11 +57,13 @@ class Settings(BaseSettings):
         return self
 
     @property
-    def effective_relevance_threshold(self) -> float:
-        """Las puntuaciones dependen del modelo de embeddings: cada proveedor tiene su umbral."""
+    def effective_relevance_thresholds(self) -> tuple[float, float]:
+        """(pregunta que nombra un transportista, pregunta general). Dependen del modelo de
+        embeddings; RELEVANCE_THRESHOLD fija el mismo valor para los dos."""
         if self.relevance_threshold is not None:
-            return self.relevance_threshold
-        return CALIBRATED_THRESHOLDS[self.model_provider]
+            return self.relevance_threshold, self.relevance_threshold
+        calibrated = CALIBRATED_THRESHOLDS[self.model_provider]
+        return calibrated["named"], calibrated["general"]
 
     @property
     def max_upload_bytes(self) -> int:

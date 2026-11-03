@@ -2,11 +2,11 @@
 
 Corpus: PDFs `seed=true` de `samples/` · solo versiones vigentes · k=6 · filtro de transportista con `resolve_carrier`.
 
-| Estrategia | recall@1 | recall@3 | recall@6 | MRR | umbral calibrado | respondibles rechazadas |
-|---|---|---|---|---|---|---|
-| B0 ('fixed', False) | 0.42 | 1.00 | 1.00 | 0.71 | 0.67 | 3 |
-| B1 ('clause', False) | 0.50 | 1.00 | 1.00 | 0.74 | 0.69 | 2 |
-| B2 ('clause', True) | 0.92 | 0.92 | 1.00 | 0.94 | 0.69 | 1 |
+| Estrategia | recall@1 | recall@3 | recall@6 | MRR | umbral único | umbral con transportista | umbral general | respondibles rechazadas (2 umbrales) |
+|---|---|---|---|---|---|---|---|---|
+| B0 ('fixed', False) | 0.42 | 1.00 | 1.00 | 0.71 | 0.67 | 0.67 | 0.64 | 3 |
+| B1 ('clause', False) | 0.50 | 1.00 | 1.00 | 0.74 | 0.69 | 0.69 | 0.67 | 2 |
+| B2 ('clause', True) | 0.92 | 0.92 | 1.00 | 0.94 | 0.69 | 0.70 | 0.63 | 0 |
 
 Rango del primer resultado relevante por pregunta (— = no está en el top-k):
 
