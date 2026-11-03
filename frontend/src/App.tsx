@@ -46,8 +46,14 @@ export default function App() {
         >
           ☰ Documentos ({docs.length})
         </button>
+        <span
+          aria-hidden
+          className="hidden size-7 shrink-0 items-center justify-center rounded-lg bg-brand-700 text-sm font-bold text-white sm:flex"
+        >
+          N
+        </span>
         <h1 className="min-w-0 truncate font-semibold text-slate-900">
-          Norvia · Asistente de contratos
+          Norvia <span className="font-normal text-slate-500">· Asistente de contratos</span>
         </h1>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {config?.demo_mode && (

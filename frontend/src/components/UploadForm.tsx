@@ -102,7 +102,7 @@ export function UploadForm({ carriers, onUploaded }: Props) {
       </label>
       <button
         disabled={sending}
-        className="w-full rounded-md bg-slate-800 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+        className="w-full rounded-md bg-brand-700 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-50"
       >
         {sending ? "Subiendo…" : "Subir"}
       </button>
