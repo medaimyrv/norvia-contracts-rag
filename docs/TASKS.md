@@ -10,7 +10,7 @@ Marca `[x]` solo cuando el test pasa **y** puedes explicar el diff.
 - [x] T04 Alembic: tablas `documents`/`chunks`, índice HNSW + test de integración (testcontainers) · R7
 - [x] T20 GitHub Actions: lint + tests (adelantada; el build de imágenes se añade en T21) · Q5
 - [x] T05 Generador de PDFs sintéticos (3 transportistas, 2 versiones, tablas, corrupto, escaneado, malicioso) · E5
-- [ ] T06 Extractor pdfplumber + errores `invalid_pdf` / `no_text_layer` + tests · R4, F1, F2
+- [x] T06 Extractor pdfplumber + errores `invalid_pdf` / `no_text_layer` + tests · R4, F1, F2
 - [ ] T07 Chunkers `clause` y `fixed` + tests unitarios · R4, D2
 - [ ] T08 Puertos + `FakeEmbedder` / `FakeLLM` + adaptadores LiteLLM · R10
 - [ ] T09 Servicio `ingest_document` (transacción única, idempotente) + tarea Celery con reintentos + tests · R4, R5, R6, F8
