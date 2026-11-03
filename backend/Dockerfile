@@ -20,6 +20,8 @@ RUN useradd --create-home --uid 1000 app \
     && mkdir -p /data/uploads && chown app:app /data/uploads
 COPY --from=builder /opt/venv /opt/venv
 WORKDIR /srv
+COPY --chown=app:app alembic.ini ./
+COPY --chown=app:app migrations ./migrations
 COPY --chown=app:app app ./app
 USER app
 EXPOSE 8000

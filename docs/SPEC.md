@@ -79,10 +79,12 @@ documents
   status           enum(PENDING, PROCESSING, READY, FAILED)
   error_code       text NULL
   attempts         int
+  chunk_count      int             -- se escribe en la misma transacción que los chunks
   page_count       int NULL
   trace_id         text NULL       -- traza de ingesta (Q2)
   created_at / updated_at / processing_started_at
   UNIQUE (carrier, contract_code, version)
+  UNIQUE (carrier, contract_code) WHERE is_current   -- una sola versión vigente
 
 chunks
   id               uuid PK

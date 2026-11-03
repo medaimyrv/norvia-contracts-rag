@@ -32,6 +32,8 @@ x-backend: &backend
       condition: service_healthy
     redis:
       condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
   restart: unless-stopped
 
 services:
@@ -56,6 +58,17 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Aplica las migraciones y termina; api y worker esperan a que acabe bien [R7]
+  migrate:
+    build: ./backend
+    image: norvia-rag-backend:local
+    command: ["alembic", "upgrade", "head"]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   api:
     <<: *backend
