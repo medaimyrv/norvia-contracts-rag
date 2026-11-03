@@ -96,6 +96,29 @@ async def test_fake_llm_returns_at_most_two_sentences() -> None:
     assert answer.count("[c1]") <= 2
 
 
+async def test_fake_llm_does_not_answer_with_carrier_name_only() -> None:
+    # Caso real del modo demo: la portada repite el nombre del transportista pero no responde
+    cover = "Contrato de transporte de mercancías · Transportes Cóndor Andino. Versión 2."
+    evidence = [EvidenceChunk("c1", cover, "Transportes Cóndor Andino")]
+    request = LLMRequest(
+        system="s",
+        user="u",
+        question="¿Cómo se llama el director general de Transportes Cóndor Andino?",
+        evidence=evidence,
+    )
+    text, _ = await collect(FakeLLM(), request)
+    assert text.split(f"\n{END_ANSWER}\n")[0] == NO_EVIDENCE
+
+
+async def test_fake_llm_still_answers_content_questions_about_a_carrier() -> None:
+    evidence = [EvidenceChunk("c1", CLAIMS, "Transportes Cóndor Andino")]
+    request = LLMRequest(
+        system="s", user="u", question="¿Plazo de reclamación con Cóndor Andino?", evidence=evidence
+    )
+    text, _ = await collect(FakeLLM(), request)
+    assert "diez (10) días naturales" in text
+
+
 async def test_fake_llm_without_evidence_says_so() -> None:
     text, _ = await collect(FakeLLM(), request("¿Plazo de reclamación?"))
     answer, payload = text.split(f"\n{END_ANSWER}\n")

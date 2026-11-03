@@ -85,7 +85,10 @@ class FakeLLM:
 
 
 def _best_sentences(question: str, evidence: list[EvidenceChunk]) -> list[tuple[str, str]]:
-    wanted = set(tokens(question))
+    # El nombre del transportista dice DE QUIÉN se pregunta, no QUÉ: una frase que solo
+    # comparte el nombre (p. ej. la portada) no responde a nada y no cuenta como evidencia
+    carrier_words = {t for chunk in evidence for t in tokens(chunk.carrier)}
+    wanted = set(tokens(question)) - carrier_words
     scored: list[tuple[int, int, str, str]] = []  # (aciertos, orden, etiqueta, frase)
     for chunk in evidence:
         # Frases: fin de oración o inicio de apartado («6.1», «a)»), para no pegar el título

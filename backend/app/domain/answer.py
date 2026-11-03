@@ -64,7 +64,7 @@ def build_request(question: str, chunks: list[RetrievedChunk]) -> LLMRequest:
             f'paginas="{pages}">\n{content}\n</evidencia>'
         )
     user = "\n\n".join(blocks) + f"\n\nPregunta: {question}"
-    evidence = [EvidenceChunk(label(i), c.content) for i, c in enumerate(chunks)]
+    evidence = [EvidenceChunk(label(i), c.content, c.carrier) for i, c in enumerate(chunks)]
     return LLMRequest(system=SYSTEM_PROMPT, user=user, question=question, evidence=evidence)
 
 

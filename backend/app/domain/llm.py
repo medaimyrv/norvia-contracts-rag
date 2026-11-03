@@ -10,6 +10,7 @@ NO_EVIDENCE = "SIN_EVIDENCIA"
 class EvidenceChunk:
     label: str  # identificador que el LLM usa al citar, p. ej. "c1"
     text: str
+    carrier: str = ""  # el FakeLLM no cuenta el nombre del transportista como coincidencia
 
 
 @dataclass(frozen=True)
