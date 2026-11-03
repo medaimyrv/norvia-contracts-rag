@@ -6,7 +6,7 @@ Marca `[x]` solo cuando el test pasa **y** puedes explicar el diff.
 ## Día 1 — Base y datos
 - [x] T01 Esqueleto del monorepo, `pyproject` (uv, ruff, pytest), `.env.example`, Makefile · E1, S2
 - [x] T02 docker-compose: postgres(pgvector), redis, api, worker; healthchecks (el servicio frontend se añade en T15) · R14
-- [ ] T03 Settings con pydantic-settings + modelos de dominio estrictos + tests · R1
+- [x] T03 Settings con pydantic-settings + modelos de dominio estrictos + tests · R1
 - [ ] T04 Alembic: tablas `documents`/`chunks`, índice HNSW + test de integración (testcontainers) · R7
 - [ ] T20 GitHub Actions: lint + tests (adelantada; el build de imágenes se añade en T21) · Q5
 - [ ] T05 Generador de PDFs sintéticos (3 transportistas, 2 versiones, tablas, corrupto, escaneado, malicioso) · E5
