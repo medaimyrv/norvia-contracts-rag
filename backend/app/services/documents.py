@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -49,6 +49,25 @@ class DocumentService:
 
         self._try_enqueue(doc.id)
         return Registration(doc, duplicate=False)
+
+    def reindex_stale(self, embedding_model: str) -> int:
+        """Reencola los documentos vectorizados con otro modelo [D6]. Pasan a PENDING (dejan de
+        buscarse) y la ingesta reemplaza sus chunks en una transacción."""
+        with self.sessions.begin() as session:
+            ids = list(
+                session.scalars(
+                    update(Document)
+                    .where(
+                        Document.status == DocumentStatus.READY,
+                        Document.embedding_model.is_distinct_from(embedding_model),
+                    )
+                    .values(status=DocumentStatus.PENDING)
+                    .returning(Document.id)
+                )
+            )
+        for document_id in ids:
+            self._try_enqueue(document_id)
+        return len(ids)
 
     def _duplicate(self, existing: Document, meta: DocumentMetadata) -> Registration:
         same = (

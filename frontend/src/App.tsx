@@ -34,6 +34,20 @@ export default function App() {
             para respuestas generativas.
           </p>
         )}
+        {!!config?.stale_documents && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-900">
+            <span>
+              <strong>{config.stale_documents} documento(s)</strong> se procesaron con otro modelo de
+              embeddings y no aparecen en las búsquedas.
+            </span>
+            <button
+              onClick={() => api.reindex().then(() => documents.refresh()).then(loadConfig)}
+              className="rounded-md bg-red-800 px-2 py-1 text-white"
+            >
+              Reindexar
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="grid flex-1 gap-3 md:grid-cols-[320px_1fr]">

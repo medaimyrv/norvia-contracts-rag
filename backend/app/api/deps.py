@@ -52,7 +52,7 @@ def get_chat_service(request: Request) -> ChatService:
     return ChatService(
         embedder=providers.embedder,
         llm=providers.llm,
-        retriever=PgVectorRetriever(get_sessions()),
+        retriever=PgVectorRetriever(get_sessions(), providers.embedder.model),
         threshold=get_settings().effective_relevance_threshold,
         capture_content=get_settings().otel_capture_content,
     )

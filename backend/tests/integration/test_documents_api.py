@@ -175,3 +175,28 @@ def test_ready_reports_each_dependency(client, monkeypatch) -> None:
     response = client.get("/health/ready")
     assert response.status_code == 503
     assert response.json() == {"database": "ok", "redis": "unavailable"}
+
+
+# --- Cambio de modelo de embeddings [D6] ---
+
+
+def test_documents_from_other_model_are_flagged_and_reindexed(
+    client, queue, migrated_engine
+) -> None:
+    from app.adapters.db.retriever import PgVectorRetriever
+
+    created = upload(client).json()
+    sessions = session_factory_for(migrated_engine)
+    with sessions.begin() as s:  # simula un documento ingerido antes con otro modelo
+        doc = s.get(Document, UUID(created["id"]))
+        doc.status = "READY"
+        doc.embedding_model = "gemini/gemini-embedding-001"
+    # El modelo activo en los tests es el fake: ese documento no es comparable
+    assert client.get("/api/config").json()["stale_documents"] == 1
+    assert PgVectorRetriever(sessions, "fake/lexical-v1").known_carriers() == []
+
+    queue.ids.clear()
+    assert client.post("/api/documents/reindex").json() == {"requeued": 1}
+    assert queue.ids == [UUID(created["id"])]
+    assert client.get(f"/api/documents/{created['id']}").json()["status"] == "PENDING"
+    assert client.get("/api/config").json()["stale_documents"] == 0

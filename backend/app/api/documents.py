@@ -76,6 +76,14 @@ async def upload_document(
     return to_out(registration.document, registration.duplicate)
 
 
+@router.post("/documents/reindex")
+def reindex_documents(
+    request: Request, service: Annotated[DocumentService, Depends(get_document_service)]
+) -> dict[str, int]:
+    """Reprocesa los documentos vectorizados con un modelo distinto al activo [D6]."""
+    return {"requeued": service.reindex_stale(request.app.state.providers.embedder.model)}
+
+
 @router.get("/documents", response_model=list[DocumentOut])
 def list_documents(
     sessions: Annotated[sessionmaker[Session], Depends(get_sessions)],

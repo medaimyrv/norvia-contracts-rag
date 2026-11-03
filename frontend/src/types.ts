@@ -44,7 +44,9 @@ export interface Citation {
 export interface AppConfig {
   demo_mode: boolean;
   llm_model: string;
+  embedding_model: string;
   carriers: string[];
+  stale_documents: number;
 }
 
 export interface ApiError {

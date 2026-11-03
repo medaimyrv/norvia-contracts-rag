@@ -302,3 +302,9 @@ def test_sweeper_task_requeues(sessions, storage, monkeypatch) -> None:
         s.get(Document, doc_id).processing_started_at = datetime.now(UTC) - td(hours=1)
     assert tasks.sweep_stuck_documents() == 1
     assert queued == [str(doc_id)]
+
+
+def test_ingestion_records_embedding_model(sessions, storage) -> None:
+    doc_id = register(sessions, storage, "condor_andino_v1.pdf")
+    make_service(sessions, storage).ingest(doc_id)
+    assert get(sessions, doc_id).embedding_model == "fake/lexical-v1"

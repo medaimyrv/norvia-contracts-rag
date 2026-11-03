@@ -111,6 +111,7 @@ class IngestionService:
             locked.error_code = None
             locked.chunk_count = len(drafts)
             locked.page_count = extracted.page_count
+            locked.embedding_model = self.embedder.model  # vectores comparables solo entre sí [D6]
             session.flush()
             refresh_current_version(session, locked.carrier, locked.contract_code)
         log.info(

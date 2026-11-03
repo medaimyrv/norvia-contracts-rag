@@ -8,12 +8,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from opentelemetry import trace
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db.retriever import PgVectorRetriever
+from app.adapters.db.tables import Document
 from app.adapters.providers import Providers
 from app.api.deps import get_chat_service, get_providers, get_sessions
-from app.domain.models import ChatRequest
+from app.domain.models import ChatRequest, DocumentStatus
 from app.services.chat import (
     Answer,
     ChatEvent,
@@ -96,9 +98,20 @@ def config(
     providers: Annotated[Providers, Depends(get_providers)],
     sessions: Annotated[sessionmaker[Session], Depends(get_sessions)],
 ) -> dict[str, object]:
-    """Lo que la web necesita saber: modo demo [D15] y transportistas disponibles [D16]."""
+    """Lo que la web necesita saber: modo demo [D15], transportistas [D16] y documentos
+    vectorizados con otro modelo, que no aparecen en las búsquedas hasta reindexarlos [D6]."""
+    model = providers.embedder.model
+    with sessions() as session:
+        stale = session.scalar(
+            select(func.count()).where(
+                Document.status == DocumentStatus.READY,
+                Document.embedding_model.is_distinct_from(model),
+            )
+        )
     return {
         "demo_mode": providers.is_fake,
         "llm_model": providers.llm.model,
-        "carriers": PgVectorRetriever(sessions).known_carriers(),
+        "embedding_model": model,
+        "carriers": PgVectorRetriever(sessions, model).known_carriers(),
+        "stale_documents": stale,
     }

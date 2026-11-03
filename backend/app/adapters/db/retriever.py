@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from sqlalchemy import select, text
+from sqlalchemy import ColumnElement, select, text, true
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db.tables import Chunk, Document
@@ -14,6 +14,14 @@ from app.observability import tracer
 @dataclass(frozen=True)
 class PgVectorRetriever:
     sessions: sessionmaker[Session]
+    # Solo documentos vectorizados con el modelo activo: los demás darían puntuaciones sin
+    # sentido. None = sin filtro (tests que no lo necesitan)
+    embedding_model: str | None = None
+
+    def _same_model(self) -> ColumnElement[bool]:
+        if self.embedding_model is None:
+            return true()
+        return Document.embedding_model == self.embedding_model
 
     def search(
         self, query_vector: list[float], k: int, filters: SearchFilters
@@ -22,7 +30,7 @@ class PgVectorRetriever:
         query = (
             select(Chunk, Document, (1 - distance).label("score"))
             .join(Document, Chunk.document_id == Document.id)
-            .where(Document.status == DocumentStatus.READY)
+            .where(Document.status == DocumentStatus.READY, self._same_model())
             .order_by(distance)
             .limit(k)
         )
@@ -57,7 +65,7 @@ class PgVectorRetriever:
         with self.sessions() as session:
             query = (
                 select(Document.carrier)
-                .where(Document.status == DocumentStatus.READY)
+                .where(Document.status == DocumentStatus.READY, self._same_model())
                 .distinct()
                 .order_by(Document.carrier)
             )

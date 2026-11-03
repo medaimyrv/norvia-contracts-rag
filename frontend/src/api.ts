@@ -25,6 +25,8 @@ export const api = {
   config: () => fetch("/api/config").then((r) => json<AppConfig>(r)),
   documents: () => fetch("/api/documents").then((r) => json<DocumentOut[]>(r)),
   chunk: (id: string) => fetch(`/api/chunks/${id}`).then((r) => json<ChunkOut>(r)),
+  reindex: () =>
+    fetch("/api/documents/reindex", { method: "POST" }).then((r) => json<{ requeued: number }>(r)),
   upload: (form: FormData) =>
     fetch("/api/documents", { method: "POST", body: form }).then((r) => json<DocumentOut>(r)),
 };
