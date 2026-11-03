@@ -216,3 +216,38 @@ def test_task_does_not_retry_permanent_errors(sessions, storage, eager, monkeypa
     doc_id = register(sessions, storage, "corrupt.pdf")
     assert tasks.ingest_document.delay(str(doc_id)).get() == "failed"
     assert get(sessions, doc_id).attempts == 1
+
+
+def test_concurrent_versions_never_end_up_both_current(sessions, storage) -> None:
+    """Dos workers terminan v1 y v2 a la vez: el advisory lock serializa el recálculo."""
+    import threading
+
+    from app.services.ingestion import refresh_current_version
+
+    v1 = register(sessions, storage, "condor_andino_v1.pdf", version=1)
+    v2 = register(
+        sessions, storage, "condor_andino_v2.pdf", version=2, effective_from=date(2026, 3, 1)
+    )
+    errors: list[Exception] = []
+
+    def finish_v1() -> None:
+        try:
+            with sessions.begin() as s:
+                s.get(Document, v1).status = DocumentStatus.READY
+                s.flush()
+                refresh_current_version(s, "Transportes Cóndor Andino", "CA-2025")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    with sessions.begin() as s:
+        s.get(Document, v2).status = DocumentStatus.READY
+        s.flush()
+        refresh_current_version(s, "Transportes Cóndor Andino", "CA-2025")  # toma el lock
+        other = threading.Thread(target=finish_v1)
+        other.start()
+        other.join(timeout=0.5)
+        assert other.is_alive()  # v1 espera al lock mientras v2 no confirma
+    other.join(timeout=10)
+
+    assert errors == []
+    assert get(sessions, v2).is_current and not get(sessions, v1).is_current

@@ -9,7 +9,7 @@ from datetime import UTC, date, datetime
 from enum import StrEnum
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db.tables import Chunk, Document
@@ -121,7 +121,14 @@ class IngestionService:
 
 
 def refresh_current_version(session: Session, carrier: str, contract_code: str) -> None:
-    """Vigente = versión READY con mayor número cuya fecha de vigencia ya llegó [D3]."""
+    """Vigente = versión READY con mayor número cuya fecha de vigencia ya llegó [D3].
+
+    Dos workers pueden terminar a la vez dos versiones del mismo contrato: cada uno bloquea
+    solo su documento y ninguno ve aún el otro como READY, así que ambos se elegirían como
+    vigentes. El advisory lock serializa el recálculo por contrato: el segundo espera al commit
+    del primero y entonces ya lo ve (READ COMMITTED lee lo confirmado en cada sentencia).
+    """
+    session.execute(select(func.pg_advisory_xact_lock(func.hashtext(f"{carrier}|{contract_code}"))))
     winner = session.scalar(
         select(Document.id)
         .where(

@@ -44,7 +44,12 @@ def _validate_configuration(**_: object) -> None:
 class IngestTask(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo) -> None:  # type: ignore[override]
         # Reintentos agotados en un error transitorio: queda FAILED con su código
-        code = exc.code if isinstance(exc, IngestionError) else "database_unavailable"
+        if isinstance(exc, IngestionError):
+            code = exc.code
+        elif isinstance(exc, OperationalError):
+            code = "database_unavailable"
+        else:
+            code = "internal_error"
         try:
             get_ingestion_service().mark_failed(UUID(args[0]), code)
         except OperationalError:
