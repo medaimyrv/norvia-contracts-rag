@@ -1,1 +1,0 @@
-{"root":["./src/App.tsx","./src/api.ts","./src/main.tsx","./src/sse.ts","./src/types.ts","./src/components/Chat.tsx","./src/components/CitationPanel.tsx","./src/components/DocumentList.tsx","./src/components/UploadForm.tsx","./src/hooks/usePolling.ts","./vite.config.ts"],"version":"6.0.3"}
