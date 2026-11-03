@@ -25,9 +25,9 @@ Marca `[x]` solo cuando el test pasa **y** puedes explicar el diff.
 - [x] T16 Frontend: chat en streaming + panel de cita + desplegable/«Filtrando por»/«¿Quisiste decir?» + aviso modo demo · R12, D15, D16
 
 ## Día 3 — Calidad y entrega
-- [ ] T17 OpenTelemetry: instrumentación, spans manuales, atributos, span links · Q2, D10
-- [ ] T18 Sweeper + `/health/ready` + tests de Redis/BD caídos · F5, F6
-- [ ] T19 Logs JSON sin contenido + test de prompt injection + escáner de secretos en CI (pendiente de aprobar dependencia) · S2, S3, S4
+- [x] T17 OpenTelemetry: instrumentación, spans manuales, atributos, span links · Q2, D10
+- [x] T18 Sweeper + `/health/ready` + tests de Redis/BD caídos · F5, F6
+- [x] T19 Logs JSON sin contenido + test de prompt injection + escáner de secretos en CI (pendiente de aprobar dependencia) · S2, S3, S4
 - [ ] T21 CI: build de imágenes · README (Mermaid, arranque, hecho/no hecho), completar DECISIONS y trazabilidad · E2, E3, E4
 - [ ] T22 Prueba en limpio: clonar en otra carpeta → `docker compose up --build` → flujo completo
 - [ ] T23 **Entregar con ≥ 4 h de margen**

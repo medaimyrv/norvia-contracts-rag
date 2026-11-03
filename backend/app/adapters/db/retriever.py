@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.adapters.db.tables import Chunk, Document
 from app.domain.models import DocumentStatus
 from app.domain.retrieval import RetrievedChunk, SearchFilters
+from app.observability import tracer
 
 
 @dataclass(frozen=True)
@@ -30,11 +31,24 @@ class PgVectorRetriever:
         if filters.only_current:
             query = query.where(Document.is_current)
 
-        with self.sessions.begin() as session:
+        attributes = {
+            "db.system": "postgresql",
+            "db.operation": "SELECT",
+            "db.vector.index": "hnsw (vector_cosine_ops)",
+            "db.vector.iterative_scan": "relaxed_order",
+            "rag.k_requested": k,
+            "rag.filter.carrier": filters.carrier or "",
+            "rag.filter.only_current": filters.only_current,
+        }
+        with (
+            tracer.start_as_current_span("pgvector.search", attributes=attributes) as span,
+            self.sessions.begin() as session,
+        ):
             # Con filtros, HNSW podría devolver menos de k filas (filtra después de buscar).
             # iterative_scan sigue explorando el grafo hasta completar k [D14]
             session.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
             rows = session.execute(query).all()
+            span.set_attribute("db.rows", len(rows))
         results = [_to_result(chunk, doc, score) for chunk, doc, score in rows]
         # relaxed_order puede desordenar ligeramente: se reordena por puntuación
         return sorted(results, key=lambda r: -r.score)
@@ -65,4 +79,6 @@ def _to_result(chunk: Chunk, doc: Document, score: float) -> RetrievedChunk:
         page_end=chunk.page_end,
         content=chunk.content,
         score=float(score),
+        ingest_trace_id=doc.trace_id,
+        ingest_span_id=doc.ingest_span_id,
     )

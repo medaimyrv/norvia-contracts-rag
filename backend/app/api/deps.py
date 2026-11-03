@@ -54,4 +54,5 @@ def get_chat_service(request: Request) -> ChatService:
         llm=providers.llm,
         retriever=PgVectorRetriever(get_sessions()),
         threshold=get_settings().effective_relevance_threshold,
+        capture_content=get_settings().otel_capture_content,
     )

@@ -228,3 +228,35 @@ def test_sse_endpoint_event_sequence(client) -> None:
 def test_sse_endpoint_validates_request(client) -> None:
     assert client.post("/api/chat", json={"question": "x"}).status_code == 422
     assert client.post("/api/chat", json={"question": "¿Plazo?", "extra": 1}).status_code == 422
+
+
+# --- Trazas [Q2, D10, S4] ---
+
+
+async def test_chat_trace_has_retrieval_and_llm_spans(spans) -> None:
+    await run(service(ScriptedLLM(VALID)))
+    by_name = {s.name: s for s in spans.get_finished_spans()}
+    assert {"rag.chat", "rag.embed_query", "rag.retrieve", "llm.stream"} <= set(by_name)
+    root = by_name["rag.chat"]
+    assert by_name["llm.stream"].parent.span_id == root.context.span_id
+    retrieve = by_name["rag.retrieve"].attributes
+    assert retrieve["rag.k"] == 1 and retrieve["rag.top_score"] == 0.8
+    assert root.attributes["rag.outcome"] == "answer"
+    assert root.attributes["rag.carrier_filter"] == CONDOR
+    assert by_name["llm.stream"].attributes["llm.attempts"] == 1
+
+
+async def test_question_text_is_not_in_spans_by_default(spans) -> None:
+    await run(service(ScriptedLLM(VALID)), question="¿Plazo secreto con Cóndor Andino?")
+    attrs = [str(v) for s in spans.get_finished_spans() for v in s.attributes.values()]
+    assert not any("secreto" in a for a in attrs)
+    root = next(s for s in spans.get_finished_spans() if s.name == "rag.chat")
+    assert root.attributes["rag.question.length"] > 0  # solo longitud y huella
+
+
+async def test_llm_error_is_recorded_in_span(spans) -> None:
+    await run(service(ScriptedLLM(VALID, LLMTimeoutError("t"), fail_times=9)))
+    llm = next(s for s in spans.get_finished_spans() if s.name == "llm.stream")
+    assert llm.status.status_code.name == "ERROR"
+    root = next(s for s in spans.get_finished_spans() if s.name == "rag.chat")
+    assert root.attributes["error.code"] == "llm_timeout"

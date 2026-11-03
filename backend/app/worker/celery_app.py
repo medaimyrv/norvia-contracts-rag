@@ -14,3 +14,8 @@ celery_app.conf.update(
     task_ignore_result=True,  # el estado vive en PostgreSQL, no en Celery [D4]
     broker_connection_retry_on_startup=True,
 )
+
+# Sweeper cada minuto (servicio `beat` aparte: un solo planificador aunque haya varios workers)
+celery_app.conf.beat_schedule = {
+    "sweep-stuck-documents": {"task": "sweep_stuck_documents", "schedule": 60.0},
+}

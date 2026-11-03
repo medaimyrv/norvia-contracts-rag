@@ -41,6 +41,7 @@ class Settings(BaseSettings):
 
     otel_service_name: str = "norvia-rag"
     otel_exporter: Literal["console", "otlp"] = "console"
+    otel_exporter_otlp_endpoint: str = "http://jaeger:4318"
     otel_capture_content: bool = False
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 

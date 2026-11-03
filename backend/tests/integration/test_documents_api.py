@@ -160,3 +160,18 @@ def test_config_reports_demo_mode_and_carriers(client) -> None:
     body = client.get("/api/config").json()
     assert body["demo_mode"] is True  # MODEL_PROVIDER por defecto: fake
     assert body["carriers"] == []  # aún no hay documentos READY
+
+
+def test_ready_reports_each_dependency(client, monkeypatch) -> None:
+    import redis
+
+    monkeypatch.setattr(redis.Redis, "ping", lambda self: True)
+    assert client.get("/health/ready").json() == {"database": "ok", "redis": "ok"}
+
+    def down(self):
+        raise redis.ConnectionError("caído")
+
+    monkeypatch.setattr(redis.Redis, "ping", down)
+    response = client.get("/health/ready")
+    assert response.status_code == 503
+    assert response.json() == {"database": "ok", "redis": "unavailable"}

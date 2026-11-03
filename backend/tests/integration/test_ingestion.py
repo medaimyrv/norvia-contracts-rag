@@ -251,3 +251,54 @@ def test_concurrent_versions_never_end_up_both_current(sessions, storage) -> Non
 
     assert errors == []
     assert get(sessions, v2).is_current and not get(sessions, v1).is_current
+
+
+def test_ingestion_trace_and_link_ids_are_stored(sessions, storage, spans) -> None:
+    doc_id = register(sessions, storage, "condor_andino_v1.pdf")
+    make_service(sessions, storage).ingest(doc_id)
+    names = [s.name for s in spans.get_finished_spans()]
+    expected = {"ingest.document", "ingest.extract", "ingest.chunk", "ingest.embed", "ingest.store"}
+    assert expected <= set(names)
+    root = next(s for s in spans.get_finished_spans() if s.name == "ingest.document")
+    doc = get(sessions, doc_id)
+    # El chat podrá enlazar con esta traza exacta [D10]
+    assert doc.trace_id == format(root.context.trace_id, "032x")
+    assert doc.ingest_span_id == format(root.context.span_id, "016x")
+    chunk_span = next(s for s in spans.get_finished_spans() if s.name == "ingest.chunk")
+    assert chunk_span.attributes["chunk.count"] == doc.chunk_count
+
+
+# --- Sweeper [F5, F8] ---
+
+
+def test_sweeper_finds_forgotten_pending_and_dead_processing(sessions, storage) -> None:
+    from datetime import UTC, datetime
+    from datetime import timedelta as td
+
+    from app.services.ingestion import find_stuck_documents
+
+    forgotten = register(sessions, storage, "condor_andino_v1.pdf", version=1)
+    dead = register(sessions, storage, "condor_andino_v2.pdf", version=2)
+    fresh = register(sessions, storage, "rapido_austral_v1.pdf", contract_code="RA-2025")
+    now = datetime.now(UTC)
+    with sessions.begin() as s:
+        s.get(Document, dead).status = DocumentStatus.PROCESSING
+        s.get(Document, dead).processing_started_at = now - td(minutes=30)
+    later = now + td(minutes=5)  # PENDING de hace 5 min: nadie lo recogió
+    assert set(find_stuck_documents(sessions, later)) == {forgotten, fresh, dead}
+    assert find_stuck_documents(sessions, now) == [dead]  # recién subidos: aún no
+
+
+def test_sweeper_task_requeues(sessions, storage, monkeypatch) -> None:
+    from datetime import UTC, datetime
+    from datetime import timedelta as td
+
+    queued: list[str] = []
+    monkeypatch.setattr(tasks, "get_ingestion_service", lambda: make_service(sessions, storage))
+    monkeypatch.setattr(tasks.ingest_document, "delay", queued.append)
+    doc_id = register(sessions, storage, "condor_andino_v1.pdf")
+    with sessions.begin() as s:
+        s.get(Document, doc_id).status = DocumentStatus.PROCESSING
+        s.get(Document, doc_id).processing_started_at = datetime.now(UTC) - td(hours=1)
+    assert tasks.sweep_stuck_documents() == 1
+    assert queued == [str(doc_id)]

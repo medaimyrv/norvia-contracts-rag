@@ -58,3 +58,24 @@ jobs:
       - run: npm run lint
       # tsc -b (tipos) + vite build
       - run: npm run build
+
+  secrets:
+    name: Secretos · gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # todo el historial: un secreto borrado después sigue filtrado [S2]
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  images:
+    name: Imágenes Docker · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      # Las mismas imágenes que levanta `docker compose up` (backend y frontend)
+      - run: docker compose build

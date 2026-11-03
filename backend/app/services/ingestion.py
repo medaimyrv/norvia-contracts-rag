@@ -5,17 +5,19 @@ No conoce Celery: la tarea solo decide reintentos. Así se prueba sin broker.
 
 import logging
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from enum import StrEnum
 from uuid import UUID
 
+from opentelemetry import trace
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db.tables import Chunk, Document
 from app.domain.chunking import build_embedding_text
 from app.domain.errors import IngestionError
-from app.domain.models import DocumentStatus
+from app.domain.models import ChunkKind, DocumentStatus
+from app.observability import current_span_ids, tracer
 from app.ports.chunker import Chunker
 from app.ports.embedder import Embedder
 from app.ports.extractor import Extractor
@@ -41,30 +43,49 @@ class IngestionService:
 
     def ingest(self, document_id: UUID) -> Outcome:
         """Errores transitorios (proveedor, BD) se propagan para que la tarea reintente."""
+        with tracer.start_as_current_span("ingest.document") as span:
+            span.set_attribute("document.id", str(document_id))
+            outcome = self._ingest(document_id, span)
+            span.set_attribute("ingest.outcome", outcome.value)
+            return outcome
+
+    def _ingest(self, document_id: UUID, span: trace.Span) -> Outcome:
         doc = self._start(document_id)
         if doc is None:
             return Outcome.NOT_FOUND
         if doc.status is DocumentStatus.READY:
             return Outcome.ALREADY_READY
+        span.set_attribute("ingest.attempt", doc.attempts)
 
         try:
-            extracted = self.extractor.extract(self.storage.read(doc.sha256))
-            drafts = self.chunker.chunk(extracted)
-            vectors = self.embedder.embed(
-                [
-                    build_embedding_text(
-                        d, carrier=doc.carrier, contract_code=doc.contract_code, version=doc.version
-                    )
-                    for d in drafts
-                ]
-            )
+            with tracer.start_as_current_span("ingest.extract") as s:
+                extracted = self.extractor.extract(self.storage.read(doc.sha256))
+                s.set_attribute("pdf.pages", extracted.page_count)
+            with tracer.start_as_current_span("ingest.chunk") as s:
+                drafts = self.chunker.chunk(extracted)
+                s.set_attribute("chunk.count", len(drafts))
+                s.set_attribute("chunk.tables", sum(d.kind is ChunkKind.TABLE for d in drafts))
+            with tracer.start_as_current_span("ingest.embed") as s:
+                s.set_attribute("embedding.texts", len(drafts))
+                vectors = self.embedder.embed(
+                    [
+                        build_embedding_text(
+                            d,
+                            carrier=doc.carrier,
+                            contract_code=doc.contract_code,
+                            version=doc.version,
+                        )
+                        for d in drafts
+                    ]
+                )
         except IngestionError as exc:
+            span.set_attribute("error.code", exc.code)
             if not exc.permanent:
                 raise
             self.mark_failed(document_id, exc.code)
             return Outcome.FAILED
 
-        with self.sessions.begin() as session:
+        with tracer.start_as_current_span("ingest.store"), self.sessions.begin() as session:
             # Bloqueo de fila: si otro worker procesa el mismo documento, espera aquí
             locked = session.get(Document, document_id, with_for_update=True)
             if locked is None:
@@ -117,7 +138,30 @@ class IngestionService:
             doc.attempts += 1
             doc.error_code = None
             doc.processing_started_at = datetime.now(UTC)
+            # La traza de la ingesta queda en el documento: el chat enlaza con ella [D10]
+            doc.trace_id, doc.ingest_span_id = current_span_ids()
             return doc
+
+
+# Umbrales del sweeper [F5, F8]. PROCESSING debe superar task_time_limit (300 s) con margen
+PENDING_GRACE = timedelta(minutes=1)
+PROCESSING_TIMEOUT = timedelta(minutes=10)
+
+
+def find_stuck_documents(sessions: sessionmaker[Session], now: datetime) -> list[UUID]:
+    """PENDING que nadie recogió (Redis caído al subir) o PROCESSING cuyo worker murió."""
+    with sessions() as session:
+        query = select(Document.id).where(
+            (
+                (Document.status == DocumentStatus.PENDING)
+                & (Document.updated_at < now - PENDING_GRACE)
+            )
+            | (
+                (Document.status == DocumentStatus.PROCESSING)
+                & (Document.processing_started_at < now - PROCESSING_TIMEOUT)
+            )
+        )
+        return list(session.scalars(query))
 
 
 def refresh_current_version(session: Session, carrier: str, contract_code: str) -> None:

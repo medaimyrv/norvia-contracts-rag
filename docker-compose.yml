@@ -18,6 +18,7 @@ x-backend-env: &backend-env
   UPLOAD_DIR: /data/uploads
   OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-norvia-rag}
   OTEL_EXPORTER: ${OTEL_EXPORTER:-console}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
   OTEL_CAPTURE_CONTENT: ${OTEL_CAPTURE_CONTENT:-false}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   # Evita que LiteLLM cargue por su cuenta un .env al importarse (solo configuración explícita)
@@ -94,6 +95,14 @@ services:
       retries: 3
       start_period: 20s
 
+  # Planificador del sweeper (reencola documentos atascados) [F5, F8, D4].
+  # Servicio aparte: un único beat aunque se escalen los workers
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "app.worker.celery_app", "beat", "--loglevel=INFO", "-s", "/tmp/celerybeat-schedule"]
+    healthcheck:
+      disable: true
+
   # Web: nginx sirve la SPA y redirige /api a la API (mismo origen, SSE sin buffering)
   frontend:
     build: ./frontend
@@ -115,6 +124,16 @@ services:
       api:
         condition: service_healthy
     restart: "no"
+
+  # Opcional: OTEL_EXPORTER=otlp docker compose --profile observability up -d
+  # Interfaz de trazas en http://localhost:16686 [Q2]
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    profiles: ["observability"]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
 
 volumes:
   pgdata:

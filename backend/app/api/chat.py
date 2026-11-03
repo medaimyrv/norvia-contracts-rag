@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
+from opentelemetry import trace
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db.retriever import PgVectorRetriever
@@ -68,6 +69,7 @@ async def event_stream(
             # Cliente desconectado [F7]: se deja de consumir y se cierra el stream del LLM
             if await request.is_disconnected():
                 log.info("sse client disconnected")
+                trace.get_current_span().set_attribute("sse.client_disconnected", True)
                 break
             for chunk in to_sse(event):
                 yield chunk

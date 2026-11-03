@@ -63,6 +63,8 @@ class Document(Base):
     chunk_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
     page_count: Mapped[int | None] = mapped_column(Integer)
     trace_id: Mapped[str | None] = mapped_column(String(32))
+    ingest_span_id: Mapped[str | None] = mapped_column(String(16))
+    embedding_model: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

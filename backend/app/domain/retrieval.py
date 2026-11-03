@@ -21,6 +21,8 @@ class RetrievedChunk:
     page_end: int
     content: str
     score: float  # similitud coseno: 1 = idéntico
+    ingest_trace_id: str | None = None  # para enlazar la traza del chat con la ingesta [D10]
+    ingest_span_id: str | None = None
 
 
 @dataclass(frozen=True)

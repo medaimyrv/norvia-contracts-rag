@@ -41,6 +41,8 @@ def tokens(text: str) -> list[str]:
 class FakeEmbedder:
     """Bolsa de palabras «hasheada» en `dim` posiciones y normalizada (coseno con sentido)."""
 
+    model = "fake/lexical-v1"
+
     def __init__(self, dim: int = 768) -> None:
         self.dim = dim
 
