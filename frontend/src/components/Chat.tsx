@@ -193,7 +193,7 @@ export function Chat({ carriers }: { carriers: string[] }) {
                     placeholder="Automático · escribe un transportista"
                     aria-label="Transportista"
                     aria-invalid={unknownCarrier}
-                    className="w-60 rounded-full border-0 bg-white/15 py-0.5 pr-6 pl-2.5 text-xs text-white placeholder:text-brand-100/80"
+                    className="w-60 rounded-full border-0 bg-white/15 py-0.5 pr-6 pl-2.5 text-xs text-white placeholder:text-brand-100/80 focus:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                   />
                   {carrierText && (
                     <button
@@ -293,7 +293,7 @@ export function Chat({ carriers }: { carriers: string[] }) {
       </div>
 
       <form onSubmit={submit} className="shrink-0 border-t border-slate-200 bg-white px-4 py-3">
-        <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-full border border-slate-300 bg-white py-1.5 pr-1.5 pl-3 focus-within:border-brand-600">
+        <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-full border border-slate-300 bg-white py-1.5 pr-1.5 pl-3 transition-shadow focus-within:border-brand-600 focus-within:ring-4 focus-within:ring-brand-600/15">
           <textarea
             ref={inputRef}
             value={draft}
@@ -306,7 +306,7 @@ export function Chat({ carriers }: { carriers: string[] }) {
             maxLength={1000}
             placeholder="Pregunta sobre plazos, tarifas, seguros…"
             aria-label="Pregunta"
-            className="max-h-36 min-h-8 flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+            className="max-h-36 min-h-8 flex-1 resize-none bg-transparent py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus-visible:outline-none"
           />
           {busy ? (
             <button

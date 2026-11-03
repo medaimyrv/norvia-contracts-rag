@@ -66,14 +66,33 @@ export function UploadForm({ carriers, onUploaded }: Props) {
     }
   }
 
-  // Plegable (<details> nativo: accesible con teclado) para que la lista de documentos se vea
+  // Plegable (<details> nativo: accesible con teclado) para que la lista de documentos se vea.
+  // shrink-0: en la columna flex de altura fija, overflow-hidden permitiría aplastar la tarjeta
+  // hasta ocultar el formulario; así nunca se encoge y, si falta sitio, se desplaza la columna
   return (
-    <details className="group rounded-lg border border-slate-200 bg-white">
-      <summary className="cursor-pointer list-none rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
-        <span className="group-open:hidden">+ Subir contrato</span>
-        <span className="hidden group-open:inline">− Subir contrato</span>
+    <details className="group shrink-0 overflow-hidden rounded-lg border border-brand-600/30 bg-white">
+      {/* Cabecera bien visible: icono verde (+/−) y flecha que gira, para que se note que se despliega */}
+      <summary className="flex cursor-pointer list-none items-center gap-2 bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-100">
+        <span
+          aria-hidden
+          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-700 text-base leading-none text-white"
+        >
+          <span className="group-open:hidden">+</span>
+          <span className="hidden group-open:inline">−</span>
+        </span>
+        Subir contrato
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          className="ml-auto size-4 transition-transform group-open:rotate-180"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </summary>
-    <form ref={formRef} onSubmit={submit} className="space-y-2 px-3 pb-3">
+    <form ref={formRef} onSubmit={submit} className="space-y-2 px-3 pt-2 pb-3">
       {/* w-full: el control nativo (botón + nombre) no debe salirse de la columna en ningún navegador */}
       <input
         name="file"

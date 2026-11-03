@@ -16,8 +16,13 @@
   height: 100dvh;
 }
 
-/* Foco de teclado siempre visible (criterio de accesibilidad) */
-:focus-visible {
-  outline: 2px solid var(--color-brand-700);
-  outline-offset: 2px;
+/* Foco de teclado siempre visible (criterio de accesibilidad). Va en la capa «base» de
+   Tailwind: una regla fuera de capa gana siempre a las clases de utilidad (que están en
+   «utilities») y entonces ningún componente podría mostrar su foco de otra forma. Así, el
+   óvalo del campo de mensaje resalta entero en vez de dibujar un rectángulo dentro */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-brand-700);
+    outline-offset: 2px;
+  }
 }
