@@ -29,7 +29,7 @@ historial persistente de conversaciones.
 | R9 | Chat con streaming SSE | `POST /api/chat` → `text/event-stream` con eventos `retrieval`, `token`, `citations`, `done`, `error` (ver §4). |
 | R10 | Capa de abstracción del LLM | Puertos `LLM` y `Embedder` (Protocol). Adaptadores: `LiteLLM*` (real) y `Fake*` (determinista). Selección por `MODEL_PROVIDER`. |
 | R11 | Política anti-alucinación | Umbral `RELEVANCE_THRESHOLD` configurable. Si ningún chunk lo supera → respuesta «No encuentro evidencia…» **sin llamar al LLM**, con la lista de transportistas disponibles. Validación documentada con preguntas sin respuesta en el eval set. |
-| R12 | Frontend React | Subida de documentos con metadatos, vista de estado (polling), chat con streaming, citas clicables que muestran el fragmento original con documento, versión y rango de páginas. Desplegable de transportista, etiqueta «Filtrando por: …», botones de «¿Quisiste decir…?» (D16) y aviso de «Modo demostración» si `MODEL_PROVIDER=fake` (D15). |
+| R12 | Frontend React | Subida de documentos con metadatos, vista de estado (polling), chat con streaming, citas clicables que muestran el fragmento original con documento, versión y rango de páginas. Campo de transportista con sugerencias al escribir, etiqueta «Filtrando por: …», botones de «¿Quisiste decir…?» (D16), aviso de «Modo demostración» si `MODEL_PROVIDER=fake` (D15), formulario pre-rellenado desde la portada del PDF (D19) y aviso de documentos por actualizar con otro modelo de embeddings (D6). |
 | R13 | Evaluación de recuperación | 10–15 preguntas con respuesta esperada, archivo fuente y frase de evidencia (`eval/questions.yaml`). Script `eval/run_eval.py` reporta recall@1/@3/@k y MRR para B0/B1/B2 (D17). Resultados con embeddings reales en `eval/RESULTS.md`. |
 | R14 | Un solo comando | `docker compose up --build` levanta API, worker, Redis, PostgreSQL+pgvector y frontend. Incluye PDFs sintéticos y funciona **sin claves** (`MODEL_PROVIDER=fake`). |
 
@@ -38,7 +38,7 @@ historial persistente de conversaciones.
 | ID | Requisito | Criterios de aceptación |
 |----|-----------|-------------------------|
 | Q1 | Tests automatizados | Unitarios: chunking, modelos Pydantic, política de evidencia, parser de salida del LLM. Integración: PostgreSQL+pgvector real (testcontainers). Tarea Celery: ejecución real de la tarea. **Ningún test usa red ni claves.** `make test` los ejecuta. |
-| Q2 | OpenTelemetry | Traza de ingesta: `HTTP POST /documents` → `celery.ingest_document` → `extract` → `chunk` → `embed` → `db.insert_chunks`. Traza de chat: `HTTP POST /chat` → `retrieval.pgvector` → `llm.stream`. Atributos: latencia, `rag.k`, `rag.top_score`, `llm.tokens.input/output`, `llm.model`. Span links del chat a la traza de ingesta de los documentos citados. Exportación a consola u OTLP local. |
+| Q2 | OpenTelemetry | Traza de ingesta: `POST /api/documents` → `apply_async/ingest_document` → (worker) `run/ingest_document` → `ingest.extract` → `ingest.chunk` → `ingest.embed` → `ingest.store`. Traza de chat: `POST /api/chat` → `rag.chat` → `rag.embed_query` → `rag.retrieve` → `pgvector.search` → `llm.stream`. Atributos: latencia, `rag.k`, `rag.top_score`, `rag.threshold`, `llm.tokens.input/output`, `llm.time_to_first_token_ms`, `llm.model`. Span links del chat a la traza de ingesta de los documentos citados. Exportación a consola u OTLP local. |
 | Q5 | CI | GitHub Actions: lint (ruff + eslint), tests backend, build de imágenes Docker. |
 
 ### Q3 — Manejo de fallos (cada caso con comportamiento definido y test)
@@ -82,6 +82,8 @@ documents
   chunk_count      int             -- se escribe en la misma transacción que los chunks
   page_count       int NULL
   trace_id         text NULL       -- traza de ingesta (Q2)
+  ingest_span_id   text NULL       -- span de ingesta: enlaces desde el chat (D10)
+  embedding_model  text NULL       -- modelo con que se vectorizó; detecta desfasados (D6)
   created_at / updated_at / processing_started_at
   UNIQUE (carrier, contract_code, version)
   UNIQUE (carrier, contract_code) WHERE is_current   -- una sola versión vigente
@@ -107,10 +109,13 @@ versión `READY` con mayor `version` cuya `effective_from <= hoy`.
 ```
 POST /api/documents            multipart: file, carrier, contract_code, version, effective_from
   202 DocumentOut | 200 DocumentOut(duplicate=true) | 413 | 415 | 422 | 503
+POST /api/documents/suggest    multipart: file → metadatos propuestos desde la portada (D19); no guarda nada
+POST /api/documents/reindex    → {requeued}: reprocesa documentos de otro modelo de embeddings (D6)
 GET  /api/documents            → list[DocumentOut]
 GET  /api/documents/{id}       → DocumentOut | 404
 GET  /api/chunks/{id}          → ChunkOut (fragmento original para la cita)
 POST /api/chat                 json ChatRequest → text/event-stream
+GET  /api/config               → {demo_mode, llm_model, embedding_model, carriers, stale_documents}
 GET  /health/live              → 200
 GET  /health/ready             → 200 | 503 (comprueba BD y Redis)
 ```
@@ -126,7 +131,7 @@ SSE:
   event: done        data: { answer: str }
   event: error       data: { code, message }
 
-CitationOut   { chunk_id, document_id, filename, carrier, version, page_start, page_end, snippet }
+CitationOut   { label, chunk_id, document_id, filename, carrier, version, page_start, page_end, snippet }
 ```
 
 **Salida estructurada del LLM:** texto de respuesta, seguido de la línea
