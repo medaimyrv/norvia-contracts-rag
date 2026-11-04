@@ -16,6 +16,7 @@ const busy = (docs: DocumentOut[] | null) =>
 export default function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [docsOpen, setDocsOpen] = useState(false); // panel de documentos en móvil
+  const [reindexing, setReindexing] = useState(false);
   const loadConfig = useCallback(() => api.config().then(setConfig, () => setConfig(null)), []);
 
   // Polling: cada 2 s mientras algo se procesa, cada 10 s cuando todo está quieto
@@ -28,6 +29,18 @@ export default function App() {
   useEffect(() => {
     loadConfig();
   }, [loadConfig, readyCount]);
+
+  // Reprocesa los documentos vectorizados con otro modelo [D6]
+  async function reindex() {
+    setReindexing(true);
+    try {
+      await api.reindex();
+      await documents.refresh();
+      await loadConfig();
+    } finally {
+      setReindexing(false);
+    }
+  }
 
   useEffect(() => {
     if (!docsOpen) return;
@@ -69,16 +82,33 @@ export default function App() {
             </details>
           )}
           {!!config?.stale_documents && (
-            <span className="flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs text-red-900">
-              {config.stale_documents} desfasado(s)
-              <button
-                onClick={() => api.reindex().then(() => documents.refresh()).then(loadConfig)}
-                className="font-semibold underline"
-                title="Se procesaron con otro modelo de embeddings y no aparecen en las búsquedas"
-              >
-                Reindexar
-              </button>
-            </span>
+            <details className="relative">
+              <summary className="cursor-pointer list-none rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-900">
+                ⚠ {config.stale_documents} documento{config.stale_documents > 1 ? "s" : ""} por
+                actualizar ▾
+              </summary>
+              <div className="absolute right-0 z-20 mt-2 w-80 space-y-2 rounded-md border border-red-200 bg-white p-3 text-xs text-slate-700 shadow-lg">
+                <p>
+                  <strong>
+                    {config.stale_documents} documento{config.stale_documents > 1 ? "s" : ""}
+                  </strong>{" "}
+                  se procesaron con otro modelo de IA (por ejemplo, en modo demo) y{" "}
+                  <strong>no se usan en las búsquedas</strong>: sus datos no son compatibles con
+                  el modelo actual (<code>{config.embedding_model}</code>).
+                </p>
+                <p>
+                  Al actualizarlos se vuelven a procesar con el modelo actual. Tarda alrededor de
+                  un minuto.
+                </p>
+                <button
+                  onClick={reindex}
+                  disabled={reindexing}
+                  className="ml-auto block rounded-md bg-red-800 px-3 py-1.5 font-medium text-white hover:bg-red-900 disabled:opacity-50"
+                >
+                  {reindexing ? "Actualizando…" : "Actualizar ahora"}
+                </button>
+              </div>
+            </details>
           )}
         </div>
       </header>

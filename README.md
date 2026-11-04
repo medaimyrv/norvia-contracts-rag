@@ -38,7 +38,8 @@ docker compose up --build
 ```
 
 > Los vectores de modelos distintos no son comparables. Si cambias de proveedor con documentos ya
-> cargados, la web avisa de los documentos desfasados y permite **reindexarlos** con un botón.
+> cargados, la web avisa («⚠ N documentos por actualizar») y permite **reprocesarlos** con el botón
+> «Actualizar ahora».
 > Si cambias `POSTGRES_PASSWORD` después del primer arranque, recrea el volumen:
 > `docker compose down -v`.
 
