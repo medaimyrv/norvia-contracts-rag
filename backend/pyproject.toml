@@ -58,3 +58,9 @@ markers = [
     "integration: requiere Docker (testcontainers con PostgreSQL/pgvector o Redis)",
 ]
 addopts = "-ra --strict-markers"
+filterwarnings = [
+    # Aviso de Starlette (dentro de fastapi.testclient, no en nuestro código): su TestClient
+    # migrará de httpx a httpx2 en una versión futura. Funciona hoy; se silencia SOLO este aviso
+    # para no tapar otros. Cuando Starlette lo exija: añadir httpx2 a dev y quitar esta línea.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated:starlette.exceptions.StarletteDeprecationWarning",
+]
