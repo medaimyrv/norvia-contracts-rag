@@ -43,9 +43,10 @@ docker compose up --build
 > Si cambias `POSTGRES_PASSWORD` después del primer arranque, recrea el volumen:
 > `docker compose down -v`.
 
-Para probarla a mano: `make manual-tests` genera PDFs de prueba (versión nueva, versión futura,
-duplicados, conflictos, no-PDF, 21 MB…) y [`pruebas_manuales/GUIA.md`](pruebas_manuales/GUIA.md)
-explica qué debe pasar con cada uno.
+**Pruebas manuales:** [`pruebas_manuales/`](pruebas_manuales/) incluye PDFs de prueba (transportista
+nuevo, versión nueva, versión futura, duplicado, conflicto de versión, no-PDF, corrupto, escaneado,
+prompt injection) y [`GUIA.md`](pruebas_manuales/GUIA.md) indica qué datos usar con cada uno y qué
+debe pasar.
 
 Preguntas de ejemplo: «¿Cuál es el plazo de reclamación por mercancía dañada con Cóndor Andino?»,
 «¿Cuánto cuesta un envío de 5000 kg de Sevilla a Málaga con Vientos del Sur?», «¿Cuánto tiempo

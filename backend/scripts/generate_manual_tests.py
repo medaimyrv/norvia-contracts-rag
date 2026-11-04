@@ -1,4 +1,6 @@
-"""Genera archivos para probar la aplicación a mano desde la web (no se versionan).
+"""Genera archivos para probar la aplicación a mano desde la web (pruebas_manuales/).
+
+Se versionan todos menos demasiado_grande.pdf (21 MB), que solo se usa en la demo en vivo.
 
 Uso: make manual-tests  ->  pruebas_manuales/ con los archivos y GUIA.md
 """

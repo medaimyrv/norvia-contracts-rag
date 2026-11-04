@@ -10,4 +10,5 @@ dist/
 coverage/
 .DS_Store
 *.tsbuildinfo
-pruebas_manuales/*.pdf
+# 21 MB: solo para la demo en vivo; el límite de tamaño lo cubre test_file_validation
+pruebas_manuales/demasiado_grande.pdf

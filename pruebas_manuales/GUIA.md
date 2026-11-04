@@ -1,7 +1,7 @@
 # Guía de pruebas manuales
 
-Archivos para probar la aplicación desde la web (<http://localhost:8080>).
-Se generan con `make manual-tests` (los PDF no se versionan).
+Archivos para probar la aplicación desde la web (<http://localhost:8080>). Están en esta
+carpeta; se pueden regenerar con `make manual-tests`.
 
 Antes de empezar, los 5 contratos de ejemplo deben aparecer como **Listo** (los sube el servicio
 `seed` al arrancar).
@@ -35,7 +35,9 @@ Después, pregunta en el chat:
 | `conflicto_version.pdf` | Se rellena con CA-2025 · **2** (déjalo así) | Error: **ya existe la versión 2** de CA-2025 (409) |
 | `no_es_pdf.pdf` | — | Al elegirlo ya avisa: **solo se admiten archivos PDF** (se mira el contenido, no la extensión) |
 | `vacio.pdf` | cualquiera | Error: solo se admiten archivos PDF |
-| `demasiado_grande.pdf` | cualquiera | Error: **máximo 20 MB** |
+
+El **límite de tamaño** (20 MB → 413) lo cubre el test automático `test_file_validation`; el
+PDF de 21 MB no se incluye en el repositorio.
 
 ## 3. Subidas que se aceptan pero fallan al procesar
 
