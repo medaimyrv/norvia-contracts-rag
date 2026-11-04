@@ -160,6 +160,10 @@ Por defecto cada span se escribe en los logs de `api` y `worker` (una línea JSO
 OTEL_EXPORTER=otlp docker compose --profile observability up -d    # http://localhost:16686
 ```
 
+> Si Docker responde `network … not found` (el contenedor de Jaeger quedó asociado a una red
+> borrada por un `docker compose down` anterior): `docker compose --profile observability rm -f jaeger`
+> y repite el comando.
+
 - **Ingesta:** `POST /api/documents` → `apply_async` → (worker) `run/ingest_document` →
   `ingest.extract` / `ingest.chunk` / `ingest.embed` / `ingest.store`. El contexto viaja en las
   cabeceras de Celery.
