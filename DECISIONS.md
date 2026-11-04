@@ -165,6 +165,7 @@ El usuario puede fijar el transportista a mano con un desplegable; el filtro exp
 | Un span HTTP por cada token del SSE | Inspección de la traza en Jaeger | `exclude_spans` en la instrumentación de FastAPI |
 | Recalcular la vigencia con una sola sentencia podía violar el índice único | Revisión del diseño | Apagar y encender en dos sentencias |
 | La clave de Gemini acabó en `.env.example` (versionado) antes de un commit | Revisión antes del commit | Movida a `.env`, rotación recomendada y gitleaks en CI |
+| El servicio `seed` no tenía `build`: en una máquina nueva Compose intentaba descargar la imagen y fallaba («pull access denied») | Una persona lo probó en otra máquina; mi «prueba en limpio» clonaba en la misma, donde la imagen ya existía | `build` en `seed`; verificado borrando la imagen local y reproduciendo antes y después del arreglo |
 
 ### Qué no se delegó
 

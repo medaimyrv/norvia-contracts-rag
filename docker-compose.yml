@@ -116,6 +116,9 @@ services:
   # Carga inicial: sube por la API los PDFs seed=true de samples/ y termina [R14].
   # Idempotente: en arranques posteriores recibe 200 (ya existía) en vez de 202
   seed:
+    # build: sin él, en una máquina nueva Compose intenta DESCARGAR la imagen de Docker Hub
+    # (no existe) y falla con «pull access denied»
+    build: ./backend
     image: norvia-rag-backend:local
     command: ["python", "-m", "scripts.seed", "--api", "http://api:8000", "--samples", "/samples"]
     volumes:
