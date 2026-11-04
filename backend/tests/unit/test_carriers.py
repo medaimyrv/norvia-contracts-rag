@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.domain.carriers import Match, resolve_carrier
+from app.domain.carriers import Match, replace_mention, resolve_carrier
 
 KNOWN = [
     "Transportes Cóndor Andino",
@@ -54,3 +54,18 @@ def test_no_filter_when_none_or_several(question: str) -> None:
 
 def test_no_known_carriers() -> None:
     assert resolve_carrier("Cóndor Andino", []).match is Match.NONE
+
+
+@pytest.mark.parametrize(
+    "question,expected",
+    [
+        (
+            "¿Plazo de reclamación con Kondor Andina?",
+            "¿Plazo de reclamación con Transportes Cóndor Andino?",
+        ),
+        ("kondor andina: ¿seguro?", "Transportes Cóndor Andino: ¿seguro?"),
+        ("¿Plazo de reclamación?", "¿Plazo de reclamación?"),  # sin mención: no se toca
+    ],
+)
+def test_replace_mention_corrects_the_name_in_place(question: str, expected: str) -> None:
+    assert replace_mention(question, "Transportes Cóndor Andino") == expected

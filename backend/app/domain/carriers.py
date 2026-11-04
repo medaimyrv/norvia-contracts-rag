@@ -98,3 +98,26 @@ def resolve_carrier(question: str, known_carriers: list[str]) -> CarrierResoluti
     if close:
         return CarrierResolution(Match.SUGGESTION, close[:MAX_SUGGESTIONS])
     return CarrierResolution(Match.NONE)
+
+
+def replace_mention(question: str, carrier: str) -> str:
+    """Sustituye en la pregunta la mención aproximada del transportista por su nombre exacto.
+
+    Tras «¿Quisiste decir…?», la pregunta original aún dice «Kondor Andina»; el LLM ve un nombre
+    que no coincide con la evidencia y, con razón, no responde. Se corrige el texto en su sitio.
+    """
+    variant = _variant(carrier)
+    n = len(variant.split())
+    tokens = [(m.start(), m.end(), normalize(m.group())) for m in re.finditer(r"\w+", question)]
+    best_ratio, best_span = 0.0, None
+    for size in range(max(1, n - 1), n + 3):
+        for i in range(len(tokens) - size + 1):
+            window = tokens[i : i + size]
+            text = " ".join(t for _, _, t in window if t)  # las palabras de enlace quedan vacías
+            ratio = SequenceMatcher(None, text, variant).ratio()
+            if ratio > best_ratio:
+                best_ratio, best_span = ratio, (window[0][0], window[-1][1])
+    if best_span is None or best_ratio < SUGGEST:
+        return question
+    start, end = best_span
+    return question[:start] + carrier + question[end:]

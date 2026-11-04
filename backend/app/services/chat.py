@@ -22,7 +22,7 @@ from app.domain.answer import (
     no_evidence_answer,
     parse_llm_output,
 )
-from app.domain.carriers import Match, resolve_carrier
+from app.domain.carriers import Match, replace_mention, resolve_carrier
 from app.domain.errors import (
     EmbeddingProviderError,
     LLMError,
@@ -109,7 +109,17 @@ class ChatService:
         known = await _in_span(root, self.retriever.known_carriers, end=False)
 
         # 1. Transportista: el filtro explícito manda; si no, se resuelve en la pregunta [D16]
-        resolution = resolve_carrier(request.question, known)
+        question = request.question
+        resolution = resolve_carrier(question, known)
+        if (
+            request.carrier
+            and resolution.match is Match.SUGGESTION
+            and request.carrier in resolution.carriers
+        ):
+            # Viene de «¿Quisiste decir…?»: se corrige el nombre en la pregunta
+            question = replace_mention(question, request.carrier)
+            resolution = resolve_carrier(question, known)
+            root.set_attribute("rag.question_rewritten", True)
         # Umbral según si la pregunta NOMBRA un transportista (así se calibró), no según el filtro
         names_carrier = resolution.match is Match.EXACT
         threshold = (
@@ -133,7 +143,7 @@ class ChatService:
             "rag.embed_query", context, attributes={"embedding.model": self.embedder.model}
         )
         try:
-            [vector] = await _in_span(embed_span, self.embedder.embed, [request.question])
+            [vector] = await _in_span(embed_span, self.embedder.embed, [question])
         except EmbeddingProviderError:
             root.set_attribute("rag.outcome", "error")
             yield Failure("embedding_unavailable", "El servicio de búsqueda no está disponible.")
@@ -174,7 +184,7 @@ class ChatService:
         raw = ""
         try:
             # aclosing: si el cliente se desconecta, el cierre llega en cascada hasta el LLM [F7]
-            llm_request = build_request(request.question, chunks)
+            llm_request = build_request(question, chunks)
             async with aclosing(self._stream_llm(llm_request, llm_span)) as pieces:
                 async for piece in pieces:
                     raw += piece.full

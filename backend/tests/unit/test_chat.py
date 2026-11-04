@@ -281,3 +281,20 @@ async def test_named_question_uses_named_threshold() -> None:
     svc = ChatService(FakeEmbedder(), llm, retriever, 0.70, general_threshold=0.63)
     events = await run(svc, question="¿Cómo se llama el director de Transportes Cóndor Andino?")
     assert llm.calls == 0 and not events[-1].final.evidence
+
+
+async def test_choosing_a_suggestion_corrects_the_question() -> None:
+    # Tras «¿Quisiste decir…?» la pregunta llega con la errata y el transportista elegido
+    seen: list[str] = []
+
+    class RecordingLLM(ScriptedLLM):
+        async def stream(self, request):
+            seen.append(request.question)
+            async for event in super().stream(request):
+                yield event
+
+    events = await run(
+        service(RecordingLLM(VALID)), question="¿Plazo con Kondor Andina?", carrier=CONDOR
+    )
+    assert seen == [f"¿Plazo con {CONDOR}?"]
+    assert events[-1].final.evidence
