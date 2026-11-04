@@ -73,12 +73,15 @@ export function UploadForm({ carriers, onUploaded }: Props) {
     <details className="group shrink-0 overflow-hidden rounded-lg border border-brand-600/30 bg-white">
       {/* Cabecera bien visible: icono verde (+/−) y flecha que gira, para que se note que se despliega */}
       <summary className="flex cursor-pointer list-none items-center gap-2 bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-100">
+        {/* SVG y no los caracteres + y −: el texto no queda centrado en vertical (línea base) */}
         <span
           aria-hidden
-          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-700 text-base leading-none text-white"
+          className="flex size-6 shrink-0 items-center justify-center rounded-full bg-brand-700 text-white"
         >
-          <span className="group-open:hidden">+</span>
-          <span className="hidden group-open:inline">−</span>
+          <svg viewBox="0 0 24 24" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="3">
+            <path d="M5 12h14" strokeLinecap="round" />
+            <path d="M12 5v14" strokeLinecap="round" className="group-open:hidden" />
+          </svg>
         </span>
         Subir contrato
         <svg
