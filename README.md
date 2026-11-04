@@ -40,8 +40,9 @@ docker compose up --build
 > Los vectores de modelos distintos no son comparables. Si cambias de proveedor con documentos ya
 > cargados, la web avisa («⚠ N documentos por actualizar») y permite **reprocesarlos** con el botón
 > «Actualizar ahora».
-> Si cambias `POSTGRES_PASSWORD` después del primer arranque, recrea el volumen:
-> `docker compose down -v`.
+> `.env.example` usa la misma contraseña de base de datos que el arranque sin `.env`, así que
+> copiarlo no rompe una base de datos ya creada. Si cambias `POSTGRES_PASSWORD` después del primer
+> arranque, recrea el volumen: `docker compose down -v` (los documentos de ejemplo se recargan solos).
 
 **Pruebas manuales:** [`pruebas_manuales/`](pruebas_manuales/) incluye PDFs de prueba (transportista
 nuevo, versión nueva, versión futura, duplicado, conflicto de versión, no-PDF, corrupto, escaneado,
